@@ -170,7 +170,7 @@ evaluateCondition = F.foldl' evalOne True
         CurrentlyFalse _ -> False
 
 data ParserState =
-  ParserState { _parserDefines :: Map.Map A.Identifier DT.Text
+  ParserState { _parserDefines :: Map.Map A.Identifier Token
               -- ^ Current preprocessor definitions
               --
               -- Note that these are added and removed during parsing
@@ -212,6 +212,7 @@ instance PP.Pretty IncludeContext where
   pretty ic = PP.pretty (fileIssuingInclude ic) <> ":" <> PP.pretty (TM.sourcePosPretty (includePos ic))
 
 data SleighPreprocessingError = ErrorInIncludedFile [IncludeContext] WrappedErrorBundle
+                              | UndefinedMacroExpansion DT.Text
                               | UnmatchedElse
                               | UnmatchedEndif
   deriving (Eq, Ord, Show)
@@ -231,6 +232,7 @@ instance TM.ShowErrorComponent SleighPreprocessingError where
                        , PP.indent 2 (PP.vcat [PP.pretty ic | ic <- ctxs])
                        , PP.pretty (TM.errorBundlePretty err)
                        ]
+      UndefinedMacroExpansion name -> "Undefined macro expansion: " <> DT.unpack name
       UnmatchedElse -> "Unmatched `@else`"
       UnmatchedEndif -> "Unmatched `@endif`"
 
@@ -282,6 +284,27 @@ identifier = do
   where
     identSymbols = TM.satisfy (\c -> c == '_' || c == '.')
 
+macroExpansion :: PP (Positioned Token)
+macroExpansion = do
+  spos <- TM.getSourcePos
+  o1 <- TM.getOffset
+  _ <- lexeme (TMC.string "$(")
+  ident <- identifier
+  _ <- lexeme (TMC.char ')')
+  epos <- TM.getSourcePos
+  o2 <- TM.getOffset
+
+  defs <- CL.use parserDefines
+  case Map.lookup ident defs of
+    Just expansion -> do
+      let tk = WithPos { startPos = spos
+                       , endPos = epos
+                       , tokenLength = fromIntegral (o2 - o1)
+                       , tokenVal = expansion
+                       }
+      return $! tk
+    Nothing -> TM.customFailure (UndefinedMacroExpansion (A.identifierText ident))
+
 -- | Parse a string literal
 --
 -- Note that there does not seem to be an escape syntax according to the Sleigh documentation
@@ -326,6 +349,7 @@ anyToken = do
                  , TM.try (stoken Is "is")
                  , TM.try (stoken Export "export")
                  , TM.try (stoken Macro "macro")
+                 , TM.try macroExpansion
                  ]
   emitToken <- CL.use (conditionalStack . CL._1)
   when emitToken $ accumulatedTokens %= (Seq.|> t)
@@ -344,7 +368,9 @@ parsePreprocessorDefine = do
   ident <- lexeme identifier <?> "Preprocessor definition identifier"
   -- The definition can be either a bare identifier or a quoted literal; we have
   -- to unwrap the type wrapper from identifiers
-  value <- lexeme (TM.try stringLiteral <|> (A.identifierText <$> identifier)) <?> "Preprocessor definition value"
+  let asLit = StringLiteral <$> stringLiteral
+  let asIdent = Identifier <$> identifier
+  value <- lexeme (TM.try asLit <|> asIdent) <?> "Preprocessor definition value"
   parserDefines CL.%= Map.insert ident value
 
 -- | @\@undef IDENT@
