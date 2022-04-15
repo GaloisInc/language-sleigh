@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -50,6 +51,29 @@ data Token = StringLiteral DT.Text
            | RBrace
            | Semi
            | Amp
+           | Asterisk
+           | Plus
+           | Minus
+           | ShiftLeft
+           | ShiftRight
+           | Dollar
+           | LogicalOr
+           | LogicalAnd
+           | BitwiseOr
+           | Equals
+           | NotEquals
+           | SignedGreaterEquals
+           | GreaterEquals
+           | GreaterThan
+           | LessEquals
+           | LessThan
+           | BitwiseNot
+           | BitwiseXor
+           | Not
+           | Div
+           | SDiv
+           | Mod
+           | SMod
            -- Special identifiers
            | Token
            | Space
@@ -83,6 +107,29 @@ instance PP.Pretty Token where
       RBrace -> "}"
       Semi -> ";"
       Amp -> "&"
+      Asterisk -> "*"
+      Plus -> "+"
+      Div -> "/"
+      SDiv -> "s/"
+      Mod -> "%"
+      SMod -> "s%"
+      Minus -> "-"
+      Equals -> "=="
+      NotEquals -> "!="
+      ShiftLeft -> "<<"
+      ShiftRight -> ">>"
+      Dollar -> "$"
+      LogicalOr -> "||"
+      LogicalAnd -> "&&"
+      BitwiseOr -> "|"
+      BitwiseXor -> "^"
+      Not -> "!"
+      SignedGreaterEquals -> "s>="
+      GreaterEquals -> ">="
+      GreaterThan -> ">"
+      LessEquals -> "<="
+      LessThan -> "<"
+      BitwiseNot -> "~"
       Token -> "token"
       Space -> "space"
       Define -> "define"
@@ -102,7 +149,8 @@ data Positioned a =
           , endPos :: TM.SourcePos
           , tokenLength :: Word
           , tokenVal :: a
-          } deriving (Eq, Ord, Show)
+          }
+  deriving (Eq, Ord, Show)
 
 instance (PP.Pretty a) => PP.Pretty (Positioned a) where
   pretty p = PP.hcat [ PP.pretty (tokenVal p)
@@ -138,6 +186,8 @@ the stack evaluates to True. Note that we can cache the evaluation for efficienc
 
 data ConditionalGuard where
   IsDefined :: A.Identifier -> ConditionalGuard
+  Conjunction :: ConditionalGuard -> ConditionalGuard -> ConditionalGuard
+  StringEqual :: DT.Text -> DT.Text -> ConditionalGuard
 
 data ConditionKind = AlwaysFalseK | FalseK | TrueK
 
@@ -322,11 +372,22 @@ stringLiteral = do
 -- These are accumulated in the state, rather than returned
 anyToken :: PP ()
 anyToken = do
-  t <- TM.choice [ TM.try (token Identifier identifier)
+  t <- TM.choice [ TM.try (stoken SignedGreaterEquals "s>=")
+                 , TM.try (stoken SDiv "s/")
+                 , TM.try (stoken SMod "s%")
+                 , TM.try (token Identifier identifier)
                  , TM.try (token StringLiteral stringLiteral)
                  , TM.try (token Number TMCL.decimal)
                  , TM.try (token Number (TMC.string "0x" *> TMCL.hexadecimal))
+                 , TM.try macroExpansion
+                 , TM.try (stoken BitwiseNot "~")
+                 , TM.try (stoken GreaterEquals ">=")
+                 , TM.try (stoken GreaterThan ">")
+                 , TM.try (stoken LessEquals "<=")
+                 , TM.try (stoken LessThan "<")
                  , TM.try (stoken Colon ":")
+                 , TM.try (stoken Equals "==")
+                 , TM.try (stoken NotEquals "!=")
                  , TM.try (stoken Assign "=")
                  , TM.try (stoken LParen "(")
                  , TM.try (stoken RParen ")")
@@ -336,7 +397,20 @@ anyToken = do
                  , TM.try (stoken RBrace "}")
                  , TM.try (stoken Comma ",")
                  , TM.try (stoken Semi ";")
+                 , TM.try (stoken LogicalAnd "&&")
+                 , TM.try (stoken LogicalOr "||")
+                 , TM.try (stoken BitwiseOr "|")
+                 , TM.try (stoken BitwiseXor "^")
                  , TM.try (stoken Amp "&")
+                 , TM.try (stoken Dollar "$")
+                 , TM.try (stoken Div "/")
+                 , TM.try (stoken Mod "%")
+                 , TM.try (stoken Asterisk "*")
+                 , TM.try (stoken Plus "+")
+                 , TM.try (stoken Minus "-")
+                 , TM.try (stoken Not "!")
+                 , TM.try (stoken ShiftLeft "<<")
+                 , TM.try (stoken ShiftRight ">>")
                  , TM.try (stoken Define "define")
                  , TM.try (stoken Space "space")
                  , TM.try (stoken Register "register")
@@ -349,7 +423,6 @@ anyToken = do
                  , TM.try (stoken Is "is")
                  , TM.try (stoken Export "export")
                  , TM.try (stoken Macro "macro")
-                 , TM.try macroExpansion
                  ]
   emitToken <- CL.use (conditionalStack . CL._1)
   when emitToken $ accumulatedTokens %= (Seq.|> t)
@@ -380,20 +453,112 @@ parsePreprocessorUndefine = do
   ident <- lexeme identifier
   parserDefines CL.%= Map.delete ident
 
+-- | Parse an operand for a preprocessor binary operator, which must be a string
+preprocessorBinaryOperand :: PP DT.Text
+preprocessorBinaryOperand = do
+  let asStringLit = lexeme stringLiteral
+  let fromIdent = resolveMacro =<< lexeme identifier
+  TM.try asStringLit <|> fromIdent
+  where
+    resolveMacro ident = do
+      defs <- CL.use parserDefines
+      case Map.lookup ident defs of
+        Just (StringLiteral l) -> return l
+        Nothing -> TM.customFailure (UndefinedMacroExpansion (A.identifierText ident))
+
+preprocessorEquality :: PP ConditionalGuard
+preprocessorEquality = do
+  s1 <- preprocessorBinaryOperand
+  _ <- lexeme (TMC.string "==")
+  s2 <- preprocessorBinaryOperand
+  return (StringEqual s1 s2)
+
+preprocessorIsDefined :: PP ConditionalGuard
+preprocessorIsDefined = do
+  _ <- lexeme (TMC.string "defined")
+  _ <- lexeme (TMC.char '(')
+  ident <- lexeme identifier
+  _ <- lexeme (TMC.char ')')
+  return (IsDefined ident)
+
+preprocessorAtomicExpression :: PP ConditionalGuard
+preprocessorAtomicExpression =
+  TM.choice [ TM.try preprocessorIsDefined
+            , TM.try preprocessorEquality
+            , lexeme (TMC.char '(') *> preprocessorExpression <* lexeme (TMC.char ')')
+            ]
+
+preprocessorConj :: PP ConditionalGuard
+preprocessorConj =
+  TM.choice [ TM.try conj
+            , preprocessorAtomicExpression
+            ]
+  where
+    conj = do
+      e1 <- preprocessorAtomicExpression
+      _ <- lexeme (TMC.string "&&")
+      e2 <- preprocessorConj
+      return (Conjunction e1 e2)
+
+
+preprocessorExpression :: PP ConditionalGuard
+preprocessorExpression = preprocessorConj
+
+evaluateConditionalGuard :: ConditionalGuard -> PP Bool
+evaluateConditionalGuard cg =
+  case cg of
+    IsDefined ident -> do
+      defs <- CL.use parserDefines
+      return $ maybe False (const True) (Map.lookup ident defs)
+    StringEqual s1 s2 -> return (s1 == s2)
+    Conjunction cg1 cg2 ->
+      (&&) <$> evaluateConditionalGuard cg1 <*> evaluateConditionalGuard cg2
+
+-- | @\@if EXPR@
+parsePreprocessorIf :: PP ()
+parsePreprocessorIf = do
+  _ <- lexeme (TMC.string "if")
+  expr <- preprocessorExpression
+  exprVal <- evaluateConditionalGuard expr
+  stk <- CL.use (conditionalStack . CL._2)
+  case exprVal of
+    True -> do
+      let stk' = SomeCondition (CurrentlyTrue (Just expr)) : stk
+      conditionalStack .= (evaluateCondition stk', stk')
+    False -> do
+      let stk' = SomeCondition (CurrentlyFalse (Just expr)) : stk
+      conditionalStack .= (evaluateCondition stk', stk')
+
 -- | @\@ifdef IDENT@
 parsePreprocessorIfdef :: PP ()
 parsePreprocessorIfdef = do
   _ <- lexeme (TMC.string "ifdef")
   ident <- lexeme identifier
-  defs <- CL.use parserDefines
-  case Map.lookup ident defs of
-    Nothing -> do
-      stk <- CL.use (conditionalStack . CL._2)
-      let stk' = SomeCondition (CurrentlyFalse (Just (IsDefined ident))) : stk
+  stk <- CL.use (conditionalStack . CL._2)
+  let condGuard = IsDefined ident
+  exprVal <- evaluateConditionalGuard condGuard
+  case exprVal of
+    True -> do
+      let stk' = SomeCondition (CurrentlyTrue (Just condGuard)) : stk
       conditionalStack .= (evaluateCondition stk', stk')
-    Just _ -> do
-      stk <- CL.use (conditionalStack . CL._2)
-      let stk' = SomeCondition (CurrentlyTrue (Just (IsDefined ident))) : stk
+    False -> do
+      let stk' = SomeCondition (CurrentlyFalse (Just condGuard)) : stk
+      conditionalStack .= (evaluateCondition stk', stk')
+
+-- | @\@ifndef IDENT@
+parsePreprocessorIfndef :: PP ()
+parsePreprocessorIfndef = do
+  _ <- lexeme (TMC.string "ifndef")
+  ident <- lexeme identifier
+  stk <- CL.use (conditionalStack . CL._2)
+  let condGuard = IsDefined ident
+  exprVal <- evaluateConditionalGuard condGuard
+  case exprVal of
+    True -> do
+      let stk' = SomeCondition (CurrentlyFalse (Just condGuard)) : stk
+      conditionalStack .= (evaluateCondition stk', stk')
+    False -> do
+      let stk' = SomeCondition (CurrentlyTrue (Just condGuard)) : stk
       conditionalStack .= (evaluateCondition stk', stk')
 
 -- | @\@endif@
@@ -478,6 +643,8 @@ parsePreprocessorDirective = do
   TM.choice [ TM.try parsePreprocessorDefine
             , TM.try parsePreprocessorUndefine
             , TM.try parsePreprocessorIfdef
+            , TM.try parsePreprocessorIfndef
+            , TM.try parsePreprocessorIf
             , TM.try parsePreprocessorEndif
             , TM.try parsePreprocessorElse
             -- Note that this needs to come last so that errors in included
