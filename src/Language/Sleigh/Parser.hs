@@ -1,108 +1,179 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Sleigh.Parser (
   sleighParser
   ) where
 
-import           Control.Applicative ( empty, (<|>) )
+import           Control.Applicative ( (<|>) )
 import qualified Data.Text as DT
+import qualified Data.Text.Read as DTR
 import           Text.Megaparsec ( (<?>) )
 import qualified Text.Megaparsec as TM
-import qualified Text.Megaparsec.Char as TMC
-import qualified Text.Megaparsec.Char.Lexer as TMCL
 
 import           Language.Sleigh.AST
 import qualified Language.Sleigh.ParserMonad as P
+import qualified Language.Sleigh.Preprocessor as PP
 
-spaceConsumer :: P.SleighM ()
-spaceConsumer = TMCL.space TMC.space1 lineComment blockComment
+import Debug.Trace
+-- | Parse an expected token
+token :: PP.Token -> P.SleighM ()
+token t = TM.satisfy ((== t) . PP.tokenVal) >> return ()
+
+-- | Parse an expected identifier (like a token, but for which no specific token is identified)
+--
+-- This is useful for tokens that appear in keyword-like positions, but that are
+-- not reserved words in sleigh (or are not obviously reserved words)
+tokenIdentifier :: String -> P.SleighM ()
+tokenIdentifier t = TM.satisfy asIdent >> return ()
   where
-    lineComment = TMCL.skipLineComment "#"
-    blockComment = empty
+    asIdent tk =
+      case PP.tokenVal tk of
+        PP.Identifier i -> identifierText i == DT.pack t
+        _ -> False
 
-lexeme :: P.SleighM a -> P.SleighM a
-lexeme = TMCL.lexeme spaceConsumer
+parseString :: P.SleighM DT.Text
+parseString = TM.try $ do
+  tk <- TM.anySingle <?> "String literal"
+  case tk of
+    PP.WithPos { PP.tokenVal = PP.StringLiteral t } -> return t
+    _ -> TM.empty
 
--- | Parse an identifier
-identifier :: P.SleighM Identifier
-identifier = do
-  c1 <- identSymbols <|> TMC.letterChar
-  cs <- TM.many (TMC.alphaNumChar <|> identSymbols)
-  return (Identifier (DT.pack (c1 : cs)))
+parseIdentifier :: P.SleighM Identifier
+parseIdentifier = TM.try $ do
+  tk <- TM.anySingle <?> "Identifier"
+  case tk of
+    PP.WithPos { PP.tokenVal = PP.Identifier i } -> return i
+    _ -> TM.empty
+
+parseNumber :: P.SleighM Int
+parseNumber = TM.try $ do
+  -- NOTE: this can also be a string literal token that needs to be parsed as a number, due to preprocessor macro expansions
+  tk <- TM.anySingle <?> "Number"
+  case tk of
+    PP.WithPos { PP.tokenVal = PP.Number i } -> return i
+    PP.WithPos { PP.tokenVal = PP.StringLiteral t }
+      | Right (n, "") <- DTR.decimal t -> return n
+    _ -> TM.empty
+
+parseEndian :: P.SleighM Definition
+parseEndian = do
+  tokenIdentifier "endian"
+  token PP.Assign
+  end <- parseString
+  case end of
+    "little" -> return (DefEndianness Little)
+    "big" -> return (DefEndianness Big)
+    _ -> TM.customFailure (P.InvalidEndianness end)
+
+parseSpaceType :: P.SleighM SpaceType
+parseSpaceType = TM.try (tokenIdentifier "ram_space" *> pure Memory) <|> (tokenIdentifier "register_space" *> pure Register)
+
+parseDefault :: P.SleighM Default
+parseDefault = TM.try (tokenIdentifier "default" *> pure IsDefault) <|> pure NotDefault
+
+parseInstructionAlignment :: P.SleighM Definition
+parseInstructionAlignment = do
+  tokenIdentifier "alignment"
+  token PP.Assign
+  numBytes <- parseNumber
+  return (DefInstructionAlignment (fromIntegral numBytes))
+
+parseRegisterBank :: P.SleighM Definition
+parseRegisterBank = do
+  tokenIdentifier "register"
+  tokenIdentifier "offset"
+  token PP.Assign
+  off <- parseNumber
+  tokenIdentifier "size"
+  token PP.Assign
+  regSize <- parseNumber
+  idents <- TM.try parseList  <|> parseSingleton
+  return (DefRegisterBank (fromIntegral off) (fromIntegral regSize) idents)
   where
-    identSymbols = TM.satisfy (\c -> c == '_' || c == '.')
+    parseSingleton = (:[]) <$> parseIdentifier
+    parseList = token PP.LBracket *> TM.many parseIdentifier <* token PP.RBracket
 
--- | Parse a string literal
---
--- Note that there does not seem to be an escape syntax according to the Sleigh documentation
---
--- Does not include the double quotes
-stringLiteral :: P.SleighM DT.Text
-stringLiteral = do
-  _ <- TMC.char '"'
-  s <- TM.many (TM.anySingleBut '"')
-  _ <- TMC.char '"'
-  return (DT.pack s)
+parseSpace :: P.SleighM Definition
+parseSpace = do
+  tokenIdentifier "space"
+  ident <- parseIdentifier
+  tokenIdentifier "type"
+  token PP.Assign
+  ty <- parseSpaceType
+  tokenIdentifier "size"
+  token PP.Assign
+  addrSize <- parseNumber
+  dflt <- parseDefault
+  return (DefSpace ident ty (fromIntegral addrSize) dflt)
 
-parseComment :: P.SleighM ()
-parseComment = do
-  _ <- TMC.char '#'
-  _ <- TM.manyTill TM.anySingle TMC.eol
-  return ()
-
--- | @\@define IDENT val@
-parsePreprocessorDefine :: P.SleighM ()
-parsePreprocessorDefine = do
-  _ <- lexeme (TMC.string "define")
-  ident <- lexeme identifier <?> "Preprocessor definition identifier"
-  -- The definition can be either a bare identifier or a quoted literal; we have
-  -- to unwrap the type wrapper from identifiers
-  value <- lexeme (TM.try stringLiteral <|> (identifierText <$> identifier)) <?> "Preprocessor definition value"
-  P.recordPreprocessorDefinition ident value
-
--- | @\@undef IDENT@
-parsePreprocessorUndefine :: P.SleighM ()
-parsePreprocessorUndefine = do
-  _ <- lexeme (TMC.string "undef")
-  ident <- lexeme identifier
-  P.undefinePreprocessor ident
-
-parsePreprocessorInclude :: P.SleighM ()
-parsePreprocessorInclude = do
-  _ <- lexeme (TMC.string "include")
-  filename <- lexeme stringLiteral
-  P.processInclude filename (TM.some topLevel >> TM.eof)
-
--- | Parse and process preprocessor directives
---
--- Note that when this has been called, the @\@@ sign has already been processed by 'topLevel'
---
--- Supported preprocessor directives are:
---
---  * @\@undef@
---  * @\@define@
---  * @\@include@
---  * @\@if, \@ifdef, \@ifndef, \@else, \@elif, \@endif@
-parsePreprocessorDirective :: P.SleighM ()
-parsePreprocessorDirective = do
-  TM.choice [ TM.try parsePreprocessorDefine
-            , TM.try parsePreprocessorUndefine
-            -- Note that this needs to come last so that errors in included
-            -- files can be propagated properly; also it must not be wrapped in
-            -- a 'TM.try'
-            , parsePreprocessorInclude
+parseNormalAttr :: P.SleighM Attribute
+parseNormalAttr =
+  TM.choice [ TM.try (tokenIdentifier "signed" *> pure Signed)
+            , TM.try (tokenIdentifier "dec" *> pure Decimal)
+            , TM.try (tokenIdentifier "hex" *> pure Hexadecimal)
             ]
+
+parseContextVariables :: P.SleighM Definition
+parseContextVariables = do
+  tokenIdentifier "context"
+  ident <- parseIdentifier
+  fields <- TM.many parseContextField
+  return (DefContextVariables ident fields)
+  where
+    parseContextAttr = TM.try (tokenIdentifier "noflow" *> pure NoFlow) <|> (NormalAttribute <$> parseNormalAttr)
+    parseContextField = do
+      ident <- parseIdentifier
+      token PP.Assign
+      token PP.LParen
+      lo <- parseNumber
+      token PP.Comma
+      hi <- parseNumber
+      token PP.RParen
+      attrs <- TM.many parseContextAttr
+      return (ContextField ident (fromIntegral lo) (fromIntegral hi) attrs)
+
+parseTokens :: P.SleighM Definition
+parseTokens = do
+  tokenIdentifier "token"
+  ident <- parseIdentifier
+  token PP.LParen
+  numBits <- parseNumber
+  token PP.RParen
+  fields <- TM.many parseField
+  return (DefTokenFields ident (fromIntegral numBits) fields)
+  where
+    parseField = do
+      name <- parseIdentifier
+      token PP.Assign
+      token PP.LParen
+      lo <- parseNumber
+      token PP.Comma
+      hi <- parseNumber
+      token PP.RParen
+      attrs <- TM.many parseNormalAttr
+      return (TokenField name (fromIntegral lo) (fromIntegral hi) attrs)
+
+parseDefinition :: P.SleighM ()
+parseDefinition = do
+  token PP.Define
+  -- Note that we try to parse endianness and alignment last, as they should
+  -- only occur once. We try to parse the most common cases earlier
+  def <- TM.choice [ TM.try parseRegisterBank
+                   , TM.try parseContextVariables
+                   , TM.try parseSpace
+                   , TM.try parseTokens
+                   , TM.try parseEndian
+                   , TM.try parseInstructionAlignment
+                   ]
+  token PP.Semi
+  P.recordDefinition def
 
 -- | Parse a top-level entity
 --
 -- Each top-level entity is recorded and/or processed as a mutation of the parser state
 topLevel :: P.SleighM ()
 topLevel =
-  TM.choice [ TM.try parseComment
-            , TM.try (TMC.eol >> return ())
-            -- Note that this needs to come last so that errors in included
-            -- files can be propagated properly; also it must not be wrapped in
-            -- a 'TM.try'
-            , (TMC.char '@' *> parsePreprocessorDirective)
+  TM.choice [ TM.try parseDefinition
             ]
 
 -- | The top-level parser for Sleigh files

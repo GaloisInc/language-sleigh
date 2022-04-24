@@ -11,6 +11,7 @@ module Language.Sleigh.Preprocessor (
     preprocessSleigh
   , Token(..)
   , Positioned(..)
+  , SleighPreprocessingError(..)
   ) where
 
 import           Control.Applicative ( Alternative, (<|>), empty )
@@ -75,17 +76,9 @@ data Token = StringLiteral DT.Text
            | Mod
            | SMod
            -- Special identifiers
-           | Token
-           | Space
            | Define
-           | Register
-           | Signed
-           | Context
-           | Size
-           | Offset
            | Attach
            | Variables
-           | Is
            | Export
            | Macro
            deriving (Eq, Ord, Show)
@@ -93,9 +86,9 @@ data Token = StringLiteral DT.Text
 instance PP.Pretty Token where
   pretty t =
     case t of
-      StringLiteral s -> PP.viaShow s
+      StringLiteral s -> PP.pretty '"' <> PP.viaShow s <> PP.pretty '"'
       Number i -> PP.pretty i
-      Identifier i -> PP.pretty i
+      Identifier i -> "Ident" <> PP.parens (PP.pretty i)
       Colon -> ":"
       Assign -> "="
       Comma -> ","
@@ -130,17 +123,9 @@ instance PP.Pretty Token where
       LessEquals -> "<="
       LessThan -> "<"
       BitwiseNot -> "~"
-      Token -> "token"
-      Space -> "space"
       Define -> "define"
-      Register -> "register"
-      Signed -> "signed"
-      Context -> "context"
-      Size -> "size"
-      Offset -> "offset"
       Attach -> "attach"
       Variables -> "variables"
-      Is -> "is"
       Export -> "export"
       Macro -> "macro"
 
@@ -375,10 +360,9 @@ anyToken = do
   t <- TM.choice [ TM.try (stoken SignedGreaterEquals "s>=")
                  , TM.try (stoken SDiv "s/")
                  , TM.try (stoken SMod "s%")
-                 , TM.try (token Identifier identifier)
                  , TM.try (token StringLiteral stringLiteral)
-                 , TM.try (token Number TMCL.decimal)
                  , TM.try (token Number (TMC.string "0x" *> TMCL.hexadecimal))
+                 , TM.try (token Number TMCL.decimal)
                  , TM.try macroExpansion
                  , TM.try (stoken BitwiseNot "~")
                  , TM.try (stoken GreaterEquals ">=")
@@ -412,17 +396,11 @@ anyToken = do
                  , TM.try (stoken ShiftLeft "<<")
                  , TM.try (stoken ShiftRight ">>")
                  , TM.try (stoken Define "define")
-                 , TM.try (stoken Space "space")
-                 , TM.try (stoken Register "register")
-                 , TM.try (stoken Signed "signed")
-                 , TM.try (stoken Context "context")
-                 , TM.try (stoken Size "size")
-                 , TM.try (stoken Offset "offset")
                  , TM.try (stoken Attach "attach")
                  , TM.try (stoken Variables "variables")
-                 , TM.try (stoken Is "is")
                  , TM.try (stoken Export "export")
                  , TM.try (stoken Macro "macro")
+                 , TM.try (token Identifier identifier)
                  ]
   emitToken <- CL.use (conditionalStack . CL._1)
   when emitToken $ accumulatedTokens %= (Seq.|> t)

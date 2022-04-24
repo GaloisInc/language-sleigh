@@ -43,7 +43,7 @@ mainWith opts = do
       res <- LS.parseSleigh (includePath opts) (targetFile opts) targetBytes
       case res of
         Right s -> PRT.hPutDoc IO.stdout (PP.pretty s) >> IO.hPutStrLn IO.stdout ""
-        Left e -> IO.hPutStr IO.stdout (TM.errorBundlePretty e)
+        Left e -> PRT.hPutDoc IO.stdout (PP.pretty e) >> IO.hPutStrLn IO.stdout ""
     Preprocess -> do
       res <- LS.preprocessSleigh (includePath opts) (targetFile opts) targetBytes
       case res of
