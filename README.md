@@ -1,0 +1,1 @@
+This package implements a Haskell parser for the Sleigh language, which is used to represent ISA semantics (among other things) in [Ghidra](https://ghidra-sre.org/). This is a work in progress. Eventually, it will be able to parse all of the ISA definitions in Ghidra and postprocess them sufficiently to implement other clients for that information.
