@@ -26,6 +26,13 @@ nonEmptyList p = do
   vs <- TM.many p
   return (v0 DLN.:| vs)
 
+-- | Parse a non-empty bracketed list, where the brackets are optional for a
+-- singleton list
+nonEmptyBracketedList :: P.SleighM a -> P.SleighM (DLN.NonEmpty a)
+nonEmptyBracketedList p =
+  TM.choice [ TM.try (token PP.LBracket *> nonEmptyList p <* token PP.RBracket)
+            , (DLN.:|[]) <$> p
+            ]
 
 -- | Parse an expected token
 token :: PP.Token -> P.SleighM ()
@@ -181,9 +188,7 @@ parseAttachVariables :: P.SleighM Attach
 parseAttachVariables = do
   token PP.Variables
 
-  token PP.LBracket
-  fieldlist <- nonEmptyList parseIdentifier
-  token PP.RBracket
+  fieldlist <- nonEmptyBracketedList parseIdentifier
 
   token PP.LBracket
   registerlist <- TM.many parseValueInterpretation
@@ -191,10 +196,23 @@ parseAttachVariables = do
 
   return $! AttachVariables fieldlist registerlist
 
+parseAttachNames :: P.SleighM Attach
+parseAttachNames = do
+  tokenIdentifier "names"
+
+  fieldList <- nonEmptyBracketedList parseIdentifier
+
+  token PP.LBracket
+  names <- TM.many parseString
+  token PP.RBracket
+
+  return $! AttachNames fieldList names
+
 parseAttach :: P.SleighM ()
 parseAttach = do
   token PP.Attach
   attach <- TM.choice [ TM.try parseAttachVariables
+                      , TM.try parseAttachNames
                       ]
   token PP.Semi
   P.recordAttach attach

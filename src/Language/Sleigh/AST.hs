@@ -120,6 +120,37 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
               --    and display meaning. Instead this encoding is flagged as an
               --    invalid form of the instruction.
               -- @
+              | AttachNames (DLN.NonEmpty Identifier) [DT.Text]
+              -- ^ Attach additional names to fields, but do not change their semantic meaning
+              --
+              -- @
+              --
+              -- It is possible to just modify the display characteristics of
+              --  a field without changing the semantic meaning. The need for
+              --  this is rare, but it is possible to treat a field as having
+              --  influence on the display of the disassembly but having no
+              --  influence on the semantics. Even if the bits of the field do
+              --  have some semantic meaning, sometimes it is appropriate to
+              --  define overlapping fields, one of which is defined to have
+              --  no semantic meaning. The most convenient way to break down
+              --  the required disassembly may not be the most convenient way
+              --  to break down the semantics. It is also possible to have
+              --  symbols with semantic meaning but no display meaning (see
+              --  Section 7.4.5, “Invisible Operands”).
+              --
+              --  At any rate we can list the display interpretation of a
+              --  field directly with an attach names statement.
+              --
+              --    attach names fieldlist stringlist;
+              --
+              --  The stringlist is assigned to each of the fields in the same
+              --  manner as the attach variables and attach values statements. A
+              --  specific encoding of the field now displays as the string in
+              --  the list at that integer position. Field values greater than
+              --  the size of the list are interpreted as invalid encodings.
+              --
+              -- @
+
   deriving (Show)
 
 data Sleigh =
