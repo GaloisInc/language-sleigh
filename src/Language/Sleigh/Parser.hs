@@ -5,6 +5,8 @@ module Language.Sleigh.Parser (
   ) where
 
 import           Control.Applicative ( (<|>) )
+import           Control.Monad ( MonadPlus )
+import qualified Data.List.NonEmpty as DLN
 import qualified Data.Text as DT
 import qualified Data.Text.Read as DTR
 import           Text.Megaparsec ( (<?>) )
@@ -14,7 +16,17 @@ import           Language.Sleigh.AST
 import qualified Language.Sleigh.ParserMonad as P
 import qualified Language.Sleigh.Preprocessor as PP
 
-import Debug.Trace
+-- | A parser for a non-empty sequence of values
+--
+-- Basically the same as 'TM.some', but reflecting the required multiplicity at
+-- the type level
+nonEmptyList :: (MonadPlus m) => m a -> m (DLN.NonEmpty a)
+nonEmptyList p = do
+  v0 <- p
+  vs <- TM.many p
+  return (v0 DLN.:| vs)
+
+
 -- | Parse an expected token
 token :: PP.Token -> P.SleighM ()
 token t = TM.satisfy ((== t) . PP.tokenVal) >> return ()
@@ -153,6 +165,40 @@ parseTokens = do
       attrs <- TM.many parseNormalAttr
       return (TokenField name (fromIntegral lo) (fromIntegral hi) attrs)
 
+-- | Parse an interpretation for an @attach variables@ context
+--
+-- Note that we want to treat @_@ specially, as it denotes an invalid
+-- interpretation. Unfortunately, it is also a valid identifier. We just parse
+-- an identifier and case on it.
+parseValueInterpretation :: P.SleighM ValueInterpretation
+parseValueInterpretation = do
+  iden <- parseIdentifier
+  case identifierText iden of
+    "_" -> return InvalidInterpretation
+    _ -> return (ValidInterpretation iden)
+
+parseAttachVariables :: P.SleighM Attach
+parseAttachVariables = do
+  token PP.Variables
+
+  token PP.LBracket
+  fieldlist <- nonEmptyList parseIdentifier
+  token PP.RBracket
+
+  token PP.LBracket
+  registerlist <- TM.many parseValueInterpretation
+  token PP.RBracket
+
+  return $! AttachVariables fieldlist registerlist
+
+parseAttach :: P.SleighM ()
+parseAttach = do
+  token PP.Attach
+  attach <- TM.choice [ TM.try parseAttachVariables
+                      ]
+  token PP.Semi
+  P.recordAttach attach
+
 parseDefinition :: P.SleighM ()
 parseDefinition = do
   token PP.Define
@@ -174,6 +220,7 @@ parseDefinition = do
 topLevel :: P.SleighM ()
 topLevel =
   TM.choice [ TM.try parseDefinition
+            , TM.try parseAttach
             ]
 
 -- | The top-level parser for Sleigh files
@@ -190,5 +237,7 @@ sleighParser = do
   _ <- TM.some topLevel
   TM.eof
   defs <- P.definitions
+  atts <- P.attachments
   return Sleigh { definitions = defs
+                , attachments = atts
                 }

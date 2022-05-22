@@ -4,7 +4,7 @@ module Language.Sleigh (
   , PM.SleighParseError(..)
   , PP.SleighPreprocessingError(..)
   , SleighError(..)
-  , A.Sleigh(..)
+  , module A
   -- * Preprocessing
   , PP.preprocessSleigh
   , PP.Token(..)

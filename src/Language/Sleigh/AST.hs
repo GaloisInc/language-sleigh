@@ -3,6 +3,8 @@ module Language.Sleigh.AST (
  , Sleigh(..)
  , Endianness(..)
  , Definition(..)
+ , Attach(..)
+ , ValueInterpretation(..)
  , Default(..)
  , SpaceType(..)
  , Attribute(..)
@@ -12,6 +14,7 @@ module Language.Sleigh.AST (
  ) where
 
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as DLN
 import qualified Data.Sequence as Seq
 import qualified Data.Text as DT
 import qualified Prettyprinter as PP
@@ -53,6 +56,7 @@ data TokenField =
              }
   deriving (Show)
 
+-- | Statements that define the base constructs of an Sleigh spec
 data Definition = DefEndianness !Endianness
                 | DefInstructionAlignment !Word
                 -- ^ Alignment in bytes
@@ -66,8 +70,61 @@ data Definition = DefEndianness !Endianness
                 -- ^ Name, number of bits, fields
   deriving (Show)
 
+-- | Interpretations for attached variables
+data ValueInterpretation = ValidInterpretation !Identifier
+                         -- ^ Interpret the value as the given identifier
+                         | InvalidInterpretation
+                         -- ^ The value is an invalid decoding
+                         deriving (Show)
+
+-- | Statements that attach additional meaning to fields
+data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
+              -- ^ @fieldlist, registerlist@
+              --
+              -- Assigns meanings to each bit-pattern of the named fields. For
+              -- example, if a field @F@ is two bits, it has 4 possible integer
+              -- values. The integer values of @F@ become indexes into the
+              -- registerlist, giving interpretations for each bit pattern.  The
+              -- registerlist can contain underscores to denote invalid encodings.
+              --
+              -- From the Ghidra docs:
+              --
+              -- @
+              --    Probably the most common processor interpretation of a field is
+              --    as an encoding of a particular register. In SLEIGH this can be
+              --    done with the attach variables statement:
+              --
+              --     attach variables fieldlist registerlist;
+              --
+              --    A fieldlist can be a single field identifier or a space
+              --    separated list of field identifiers surrounded by square
+              --    brackets. A registerlist must be a square bracket surrounded
+              --    and space separated list of register identifiers as created
+              --    with define statements (see Section Section 4.4, “Naming
+              --    Registers”). For each field in the fieldlist, instead of
+              --    having the display and semantic meaning of an integer, the
+              --    field becomes a look-up table for the given list of
+              --    registers. The original integer interpretation is used as
+              --    the index into the list starting at zero, so a specific
+              --    instruction that has all the bits in the field equal to zero
+              --    yields the first register (a specific varnode) from the list
+              --    as the meaning of the field in the context of that
+              --    instruction. Note that both the display and semantic meaning
+              --    of the field are now taken from the new register.
+              --
+              --    A particular integer can remain unspecified by putting a ‘_’
+              --    character in the appropriate position of the register list or
+              --    also if the length of the register list is less than the
+              --    integer. A specific integer encoding of the field that is
+              --    unspecified like this does not revert to the original semantic
+              --    and display meaning. Instead this encoding is flagged as an
+              --    invalid form of the instruction.
+              -- @
+  deriving (Show)
+
 data Sleigh =
   Sleigh { definitions :: Seq.Seq Definition
+         , attachments :: Seq.Seq Attach
          }
   deriving (Show)
 

@@ -9,8 +9,10 @@ module Language.Sleigh.ParserMonad (
   , runSleigh
   -- * State modifiers
   , recordDefinition
+  , recordAttach
   -- * State inspection
   , definitions
+  , attachments
   ) where
 
 import           Control.Applicative ( Alternative )
@@ -21,7 +23,6 @@ import qualified Control.Monad.RWS.Strict as CMR
 import qualified Data.Foldable as F
 import qualified Data.List as DL
 import qualified Data.List.NonEmpty as DLN
-import qualified Data.Map.Strict as Map
 import           Data.Proxy ( Proxy(..) )
 import qualified Data.Sequence as Seq
 import qualified Data.Text as DT
@@ -31,13 +32,14 @@ import qualified Text.Megaparsec as TM
 import qualified Language.Sleigh.AST as A
 import qualified Language.Sleigh.Preprocessor as P
 
-import Debug.Trace
 -- | State required to parse sleigh files
 --
 -- This includes preprocessor state and any extra information required from includes
 data ParserState =
   ParserState { _definedStmts :: Seq.Seq A.Definition
               -- ^ Language-level define statements
+              , _attachStmts :: Seq.Seq A.Attach
+              -- ^ Modifiers attaching meaning to definitions
               }
 
 $(CLT.makeLenses ''ParserState)
@@ -135,12 +137,20 @@ newtype SleighM a = SleighM { unSleigh :: TM.ParsecT SleighParseError TokenStrea
 recordDefinition
   :: A.Definition
   -> SleighM ()
-recordDefinition d = do
-  traceM ("Def: " ++ show d)
+recordDefinition d =
   SleighM $ definedStmts CL.%= (Seq.|> d)
+
+recordAttach
+  :: A.Attach
+  -> SleighM ()
+recordAttach a =
+  SleighM $ attachStmts CL.%= (Seq.|> a)
 
 definitions :: SleighM (Seq.Seq A.Definition)
 definitions = SleighM (CL.use definedStmts)
+
+attachments :: SleighM (Seq.Seq A.Attach)
+attachments = SleighM (CL.use attachStmts)
 
 -- | Run a 'SleighM' parser
 --
@@ -162,6 +172,7 @@ runSleigh filename str0 tokens p =
     env = ParserEnv {
                     }
     s0 = ParserState { _definedStmts = mempty
+                     , _attachStmts = mempty
                      }
     stream = TokenStream { unTokenStream = F.toList tokens
                          , streamInput = DT.unpack str0
