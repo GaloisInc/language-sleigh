@@ -10,9 +10,13 @@ module Language.Sleigh.ParserMonad (
   -- * State modifiers
   , recordDefinition
   , recordAttach
+  , recordConstructor
+  , recordMacro
   -- * State inspection
   , definitions
   , attachments
+  , constructors
+  , macros
   ) where
 
 import           Control.Applicative ( Alternative )
@@ -40,6 +44,10 @@ data ParserState =
               -- ^ Language-level define statements
               , _attachStmts :: Seq.Seq A.Attach
               -- ^ Modifiers attaching meaning to definitions
+              , _constructorStmts :: Seq.Seq A.Constructor
+              -- ^ Constructors (instruction definitions and others)
+              , _macroStmts :: Seq.Seq A.Macro
+              -- ^ Macro definitions
               }
 
 $(CLT.makeLenses ''ParserState)
@@ -146,11 +154,28 @@ recordAttach
 recordAttach a =
   SleighM $ attachStmts CL.%= (Seq.|> a)
 
+recordConstructor
+  :: A.Constructor
+  -> SleighM ()
+recordConstructor c =
+  SleighM $ constructorStmts CL.%= (Seq.|> c)
+
+recordMacro
+  :: A.Macro
+  -> SleighM ()
+recordMacro m = SleighM $ macroStmts CL.%= (Seq.|> m)
+
 definitions :: SleighM (Seq.Seq A.Definition)
 definitions = SleighM (CL.use definedStmts)
 
 attachments :: SleighM (Seq.Seq A.Attach)
 attachments = SleighM (CL.use attachStmts)
+
+constructors :: SleighM (Seq.Seq A.Constructor)
+constructors = SleighM (CL.use constructorStmts)
+
+macros :: SleighM (Seq.Seq A.Macro)
+macros = SleighM (CL.use macroStmts)
 
 -- | Run a 'SleighM' parser
 --
@@ -173,6 +198,8 @@ runSleigh filename str0 tokens p =
                     }
     s0 = ParserState { _definedStmts = mempty
                      , _attachStmts = mempty
+                     , _constructorStmts = mempty
+                     , _macroStmts = mempty
                      }
     stream = TokenStream { unTokenStream = F.toList tokens
                          , streamInput = DT.unpack str0

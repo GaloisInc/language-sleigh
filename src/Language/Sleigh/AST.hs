@@ -1,10 +1,18 @@
 module Language.Sleigh.AST (
-   Identifier(..)
- , Sleigh(..)
+   Sleigh(..)
  , Endianness(..)
  , Definition(..)
  , Attach(..)
  , ValueInterpretation(..)
+ , Constructor(..)
+ , Macro(..)
+ , Stmt(..)
+ , Expr(..)
+ , ExportedValue(..)
+ , TableHeader(..)
+ , DisassemblyActions(..)
+ , BitPattern(..)
+ , Constraint(..)
  , Default(..)
  , SpaceType(..)
  , Attribute(..)
@@ -19,11 +27,8 @@ import qualified Data.Sequence as Seq
 import qualified Data.Text as DT
 import qualified Prettyprinter as PP
 
-newtype Identifier = Identifier { identifierText :: DT.Text }
-  deriving (Eq, Ord, Show)
-
-instance PP.Pretty Identifier where
-  pretty (Identifier i) = PP.pretty i
+import           Language.Sleigh.Identifier
+import qualified Language.Sleigh.Token as T
 
 data Endianness = Little | Big
   deriving (Show)
@@ -153,9 +158,63 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
 
   deriving (Show)
 
+-- | Constraints in bit patterns
+data Constraint = EqualityConstraint !Identifier !Word
+                -- ^ field name, value
+                | Unconstrained !Identifier
+                deriving (Show)
+
+data BitPattern = And BitPattern BitPattern
+                | Or BitPattern BitPattern
+                | Constraint !Constraint
+                deriving (Show)
+
+data DisassemblyActions = DisassemblyActions
+                        deriving  (Show)
+
+data Expr = Ref !Identifier
+          | Dereference !Expr
+          | AddressOf !Expr
+          | Truncate !Expr !Word
+          | Word_ !Word
+          -- ^ Integer expression, number of bytes to truncate to
+  deriving (Show)
+
+data ExportedValue = ExportedIdentifier !Identifier
+                   | ExportedConstant !Word !Word
+                   -- ^ Constant, varnode size in bytes
+                   deriving (Show)
+
+data Stmt = Export !ExportedValue
+          | Assign !Expr !Expr
+          -- ^ LHS, RHS
+  deriving (Show)
+
+data TableHeader = Root
+                 | Table Identifier
+                 deriving  (Show)
+
+data Constructor =
+  Constructor { tableHeader :: TableHeader
+              , displaySection :: [T.Positioned T.Token]
+              , bitPatterns :: BitPattern
+              , disassemblyActions :: DisassemblyActions
+              , constructorStatements :: [Stmt]
+              }
+  deriving (Show)
+
+data Macro =
+  Macro { macroName :: !Identifier
+        , macroArguments :: [Identifier]
+        , macroStatements :: [Stmt]
+        }
+  deriving (Show)
+
 data Sleigh =
   Sleigh { definitions :: Seq.Seq Definition
          , attachments :: Seq.Seq Attach
+         , constructors :: Seq.Seq Constructor
+         , macros :: Seq.Seq Macro
          }
   deriving (Show)
 

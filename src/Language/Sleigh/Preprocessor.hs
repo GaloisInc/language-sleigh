@@ -22,6 +22,7 @@ import           Control.Monad ( MonadPlus, when )
 import           Control.Monad.IO.Class ( MonadIO, liftIO )
 import qualified Control.Monad.RWS.Strict as CMR
 import qualified Data.ByteString as BS
+import qualified Data.Char as Char
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -35,115 +36,8 @@ import qualified Text.Megaparsec as TM
 import qualified Text.Megaparsec.Char as TMC
 import qualified Text.Megaparsec.Char.Lexer as TMCL
 
-import qualified Language.Sleigh.AST as A
-
-data Token = StringLiteral DT.Text
-           | Number Int
-           | Identifier A.Identifier
-           -- Syntax
-           | Colon
-           | Assign
-           | Comma
-           | LParen
-           | RParen
-           | LBracket
-           | RBracket
-           | LBrace
-           | RBrace
-           | Semi
-           | Amp
-           | Asterisk
-           | Plus
-           | Minus
-           | ShiftLeft
-           | ShiftRight
-           | Dollar
-           | LogicalOr
-           | LogicalAnd
-           | BitwiseOr
-           | Equals
-           | NotEquals
-           | SignedGreaterEquals
-           | GreaterEquals
-           | GreaterThan
-           | LessEquals
-           | LessThan
-           | BitwiseNot
-           | BitwiseXor
-           | Not
-           | Div
-           | SDiv
-           | Mod
-           | SMod
-           -- Special identifiers
-           | Define
-           | Attach
-           | Variables
-           | Export
-           | Macro
-           deriving (Eq, Ord, Show)
-
-instance PP.Pretty Token where
-  pretty t =
-    case t of
-      StringLiteral s -> PP.pretty '"' <> PP.viaShow s <> PP.pretty '"'
-      Number i -> PP.pretty i
-      Identifier i -> "Ident" <> PP.parens (PP.pretty i)
-      Colon -> ":"
-      Assign -> "="
-      Comma -> ","
-      LParen -> "("
-      RParen -> ")"
-      LBracket -> "["
-      RBracket -> "]"
-      LBrace -> "{"
-      RBrace -> "}"
-      Semi -> ";"
-      Amp -> "&"
-      Asterisk -> "*"
-      Plus -> "+"
-      Div -> "/"
-      SDiv -> "s/"
-      Mod -> "%"
-      SMod -> "s%"
-      Minus -> "-"
-      Equals -> "=="
-      NotEquals -> "!="
-      ShiftLeft -> "<<"
-      ShiftRight -> ">>"
-      Dollar -> "$"
-      LogicalOr -> "||"
-      LogicalAnd -> "&&"
-      BitwiseOr -> "|"
-      BitwiseXor -> "^"
-      Not -> "!"
-      SignedGreaterEquals -> "s>="
-      GreaterEquals -> ">="
-      GreaterThan -> ">"
-      LessEquals -> "<="
-      LessThan -> "<"
-      BitwiseNot -> "~"
-      Define -> "define"
-      Attach -> "attach"
-      Variables -> "variables"
-      Export -> "export"
-      Macro -> "macro"
-
-data Positioned a =
-  WithPos { startPos :: TM.SourcePos
-          , endPos :: TM.SourcePos
-          , tokenLength :: Word
-          , tokenVal :: a
-          }
-  deriving (Eq, Ord, Show)
-
-instance (PP.Pretty a) => PP.Pretty (Positioned a) where
-  pretty p = PP.hcat [ PP.pretty (tokenVal p)
-                     , "@"
-                     , PP.pretty (TM.sourcePosPretty (startPos p))
-                     , "-"
-                     , PP.pretty (TM.sourcePosPretty (endPos p))
-                     ]
+import qualified Language.Sleigh.Identifier as I
+import           Language.Sleigh.Token
 
 {- Note [Conditional Compilation Design]
 
@@ -170,7 +64,7 @@ the stack evaluates to True. Note that we can cache the evaluation for efficienc
 -}
 
 data ConditionalGuard where
-  IsDefined :: A.Identifier -> ConditionalGuard
+  IsDefined :: I.Identifier -> ConditionalGuard
   Conjunction :: ConditionalGuard -> ConditionalGuard -> ConditionalGuard
   StringEqual :: DT.Text -> DT.Text -> ConditionalGuard
 
@@ -205,7 +99,7 @@ evaluateCondition = F.foldl' evalOne True
         CurrentlyFalse _ -> False
 
 data ParserState =
-  ParserState { _parserDefines :: Map.Map A.Identifier Token
+  ParserState { _parserDefines :: Map.Map I.Identifier Token
               -- ^ Current preprocessor definitions
               --
               -- Note that these are added and removed during parsing
@@ -310,14 +204,31 @@ token con p = do
 stoken :: Token -> DT.Text -> PP (Positioned Token)
 stoken tk txt = token (const tk) (TMC.string txt >> return ())
 
+-- | A simple textual token with no data payload
+--
+-- This is for non-symbol tokens, and has additional logic using
+-- 'TM.notFollowedBy' to ensure that tokens embedded in longer identifiers are
+-- not slurped up by the maximum munch rule
+textToken :: Token -> DT.Text -> PP (Positioned Token)
+textToken tk txt = do
+  t <- token (const tk) (TMC.string txt >> return ())
+  TM.notFollowedBy (TM.satisfy isIdentifierChar)
+  return t
+
+-- | Returns true if the character is a valid character in the body of an
+-- identifier (i.e., not the first character)
+isIdentifierChar :: Char -> Bool
+isIdentifierChar c = Char.isAlphaNum c || isIdentSymbol c
+
+isIdentSymbol :: Char -> Bool
+isIdentSymbol c = c == '_' || c =='.'
+
 -- | Parse an identifier
-identifier :: PP A.Identifier
+identifier :: PP I.Identifier
 identifier = do
-  c1 <- identSymbols <|> TMC.letterChar
-  cs <- TM.many (TMC.alphaNumChar <|> identSymbols)
-  return (A.Identifier (DT.pack (c1 : cs)))
-  where
-    identSymbols = TM.satisfy (\c -> c == '_' || c == '.')
+  c1 <- TM.satisfy isIdentSymbol <|> TMC.letterChar
+  cs <- TM.many (TM.satisfy isIdentifierChar)
+  return (I.Identifier (DT.pack (c1 : cs)))
 
 macroExpansion :: PP (Positioned Token)
 macroExpansion = do
@@ -338,7 +249,7 @@ macroExpansion = do
                        , tokenVal = expansion
                        }
       return $! tk
-    Nothing -> TM.customFailure (UndefinedMacroExpansion (A.identifierText ident))
+    Nothing -> TM.customFailure (UndefinedMacroExpansion (I.identifierText ident))
 
 -- | Parse a string literal
 --
@@ -395,11 +306,12 @@ anyToken = do
                  , TM.try (stoken Not "!")
                  , TM.try (stoken ShiftLeft "<<")
                  , TM.try (stoken ShiftRight ">>")
-                 , TM.try (stoken Define "define")
-                 , TM.try (stoken Attach "attach")
-                 , TM.try (stoken Variables "variables")
-                 , TM.try (stoken Export "export")
-                 , TM.try (stoken Macro "macro")
+                 , TM.try (textToken Define "define")
+                 , TM.try (textToken Attach "attach")
+                 , TM.try (textToken Variables "variables")
+                 , TM.try (textToken Export "export")
+                 , TM.try (textToken Macro "macro")
+                 , TM.try (textToken Is "is")
                  , TM.try (token Identifier identifier)
                  ]
   emitToken <- CL.use (conditionalStack . CL._1)
@@ -442,7 +354,7 @@ preprocessorBinaryOperand = do
       defs <- CL.use parserDefines
       case Map.lookup ident defs of
         Just (StringLiteral l) -> return l
-        Nothing -> TM.customFailure (UndefinedMacroExpansion (A.identifierText ident))
+        Nothing -> TM.customFailure (UndefinedMacroExpansion (I.identifierText ident))
 
 preprocessorEquality :: PP ConditionalGuard
 preprocessorEquality = do

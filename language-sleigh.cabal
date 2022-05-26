@@ -24,9 +24,11 @@ library
 
     -- Modules included in this library but not exported.
     other-modules:    Language.Sleigh.AST
+                      Language.Sleigh.Identifier
                       Language.Sleigh.ParserMonad
                       Language.Sleigh.Parser
                       Language.Sleigh.Preprocessor
+                      Language.Sleigh.Token
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

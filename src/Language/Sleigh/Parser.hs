@@ -13,6 +13,7 @@ import           Text.Megaparsec ( (<?>) )
 import qualified Text.Megaparsec as TM
 
 import           Language.Sleigh.AST
+import           Language.Sleigh.Identifier as I
 import qualified Language.Sleigh.ParserMonad as P
 import qualified Language.Sleigh.Preprocessor as PP
 
@@ -47,7 +48,7 @@ tokenIdentifier t = TM.satisfy asIdent >> return ()
   where
     asIdent tk =
       case PP.tokenVal tk of
-        PP.Identifier i -> identifierText i == DT.pack t
+        PP.Identifier i -> I.identifierText i == DT.pack t
         _ -> False
 
 parseString :: P.SleighM DT.Text
@@ -73,6 +74,9 @@ parseNumber = TM.try $ do
     PP.WithPos { PP.tokenVal = PP.StringLiteral t }
       | Right (n, "") <- DTR.decimal t -> return n
     _ -> TM.empty
+
+parseWord :: P.SleighM Word
+parseWord = fromIntegral <$> parseNumber
 
 parseEndian :: P.SleighM Definition
 parseEndian = do
@@ -217,6 +221,90 @@ parseAttach = do
   token PP.Semi
   P.recordAttach attach
 
+parseBitPattern :: P.SleighM BitPattern
+parseBitPattern = parseBitConj
+  where
+    parseBitConj = TM.choice [ TM.try conj, parseAtomicBitPattern ]
+    conj = do
+      lhs <- parseAtomicBitPattern
+      token PP.Amp
+      rhs <- parseBitPattern
+      return (And lhs rhs)
+
+    eqConstraint = do
+      iden <- parseIdentifier
+      token PP.Assign
+      num <- parseNumber
+      return (EqualityConstraint iden (fromIntegral num))
+    parseAtomicBitPattern =
+      Constraint <$> TM.choice [ TM.try eqConstraint
+                               , Unconstrained <$> parseIdentifier
+                               ]
+
+parseExpression :: P.SleighM Expr
+parseExpression = parsePrec3
+  where
+    parsePrec3 = TM.choice [ TM.try (Truncate <$> parsePrec2 <*> (token PP.Colon *> parseWord))
+                           , parsePrec2
+                           ]
+    parsePrec2 = TM.choice [ TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
+                           , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
+                           , parsePrec1
+                           ]
+    parsePrec1 = TM.choice [ TM.try (Ref <$> parseIdentifier)
+                           , TM.try (Word_ <$> parseWord)
+                           , TM.between (token PP.LParen) (token PP.RParen) parseExpression
+                           ]
+
+parseSemantics :: P.SleighM [Stmt]
+parseSemantics = TM.many parseStatement
+  where
+    parseStatement = do
+      s <- TM.choice [ TM.try parseExportStmt
+                     , TM.try parseAssignStmt
+                     ]
+      token PP.Semi
+      return s
+    parseExportStmt = do
+      token PP.Export
+      v <- TM.choice [ TM.try (ExportedIdentifier <$> parseIdentifier)
+                     , ExportedConstant <$> parseWord <*> (token PP.Colon >> parseWord)
+                     ]
+      return (Export v)
+    parseAssignStmt = Assign <$> parseExpression <*> (token PP.Assign *> parseExpression)
+
+parseMacro :: P.SleighM ()
+parseMacro = do
+  token PP.Macro
+  name <- parseIdentifier
+  args <- TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseIdentifier (token PP.Comma))
+  stmts <- TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics
+  let m = Macro { macroName = name
+                , macroArguments = args
+                , macroStatements = stmts
+                }
+  P.recordMacro m
+
+parseConstructor :: P.SleighM ()
+parseConstructor = do
+  header <- parseTableHeader
+  -- Note that manyTill consumes the end token, which is fine in this context
+  dispTokens <- TM.manyTill TM.anySingle (token PP.Is)
+  bp <- parseBitPattern
+  stmts <- TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics
+  let con = Constructor { tableHeader = header
+                        , displaySection = dispTokens
+                        , bitPatterns = bp
+                        , disassemblyActions = DisassemblyActions
+                        , constructorStatements = stmts
+                        }
+  P.recordConstructor con
+  where
+    parseTableHeader =
+      TM.choice [ TM.try (token PP.Colon >> pure Root)
+                , (Table <$> parseIdentifier <* token PP.Colon)
+                ]
+
 parseDefinition :: P.SleighM ()
 parseDefinition = do
   token PP.Define
@@ -238,7 +326,9 @@ parseDefinition = do
 topLevel :: P.SleighM ()
 topLevel =
   TM.choice [ TM.try parseDefinition
+            , TM.try parseConstructor
             , TM.try parseAttach
+            , TM.try parseMacro
             ]
 
 -- | The top-level parser for Sleigh files
@@ -256,6 +346,10 @@ sleighParser = do
   TM.eof
   defs <- P.definitions
   atts <- P.attachments
+  cons <- P.constructors
+  macs <- P.macros
   return Sleigh { definitions = defs
                 , attachments = atts
+                , constructors = cons
+                , macros = macs
                 }
