@@ -175,8 +175,11 @@ data DisassemblyActions = DisassemblyActions
 data Expr = Ref !Identifier
           | Dereference !Expr
           | AddressOf !Expr
-          | Truncate !Expr !Word
           | Word_ !Word
+          | Truncate !Expr !Word
+          | Add !Expr !Expr
+          | Mul !Expr !Expr
+          | Funcall !Identifier [Expr]
           -- ^ Integer expression, number of bytes to truncate to
   deriving (Show)
 
@@ -188,6 +191,8 @@ data ExportedValue = ExportedIdentifier !Identifier
 data Stmt = Export !ExportedValue
           | Assign !Expr !Expr
           -- ^ LHS, RHS
+          | ExprStmt !Expr
+          -- ^ A bare expression (likely a macro expansion or an arch-specific uninterpreted function)
   deriving (Show)
 
 data TableHeader = Root

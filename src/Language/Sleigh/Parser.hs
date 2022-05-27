@@ -242,16 +242,21 @@ parseBitPattern = parseBitConj
                                ]
 
 parseExpression :: P.SleighM Expr
-parseExpression = parsePrec3
+parseExpression = parsePrec4
   where
-    parsePrec3 = TM.choice [ TM.try (Truncate <$> parsePrec2 <*> (token PP.Colon *> parseWord))
+    parsePrec4 = TM.choice [ TM.try (Add <$> parsePrec3 <*> (token PP.Plus *> parseExpression))
+                           , parsePrec3
+                           ]
+    parsePrec3 = TM.choice [ TM.try (Mul <$> parsePrec2 <*> (token PP.Asterisk *> parseExpression))
                            , parsePrec2
                            ]
     parsePrec2 = TM.choice [ TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
+                           , TM.try (Truncate <$> parsePrec1 <*> (token PP.Colon *> parseWord))
                            , parsePrec1
                            ]
-    parsePrec1 = TM.choice [ TM.try (Ref <$> parseIdentifier)
+    parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))
+                           , TM.try (Ref <$> parseIdentifier)
                            , TM.try (Word_ <$> parseWord)
                            , TM.between (token PP.LParen) (token PP.RParen) parseExpression
                            ]
@@ -262,6 +267,7 @@ parseSemantics = TM.many parseStatement
     parseStatement = do
       s <- TM.choice [ TM.try parseExportStmt
                      , TM.try parseAssignStmt
+                     , TM.try (ExprStmt <$> parseExpression)
                      ]
       token PP.Semi
       return s
