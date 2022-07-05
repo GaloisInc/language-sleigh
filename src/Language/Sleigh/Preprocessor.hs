@@ -276,6 +276,8 @@ anyToken = do
                  , TM.try (token Number TMCL.decimal)
                  , TM.try macroExpansion
                  , TM.try (stoken BitwiseNot "~")
+                 , TM.try (stoken ShiftLeft "<<")
+                 , TM.try (stoken ShiftRight ">>")
                  , TM.try (stoken GreaterEquals ">=")
                  , TM.try (stoken GreaterThan ">")
                  , TM.try (stoken LessEquals "<=")
@@ -304,8 +306,6 @@ anyToken = do
                  , TM.try (stoken Plus "+")
                  , TM.try (stoken Minus "-")
                  , TM.try (stoken Not "!")
-                 , TM.try (stoken ShiftLeft "<<")
-                 , TM.try (stoken ShiftRight ">>")
                  , TM.try (textToken Define "define")
                  , TM.try (textToken Attach "attach")
                  , TM.try (textToken Variables "variables")
