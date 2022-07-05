@@ -242,8 +242,12 @@ parseBitPattern = parseBitConj
                                ]
 
 parseExpression :: P.SleighM Expr
-parseExpression = parsePrec4
+parseExpression = parsePrec5
   where
+    parsePrec5 = TM.choice [ TM.try (ShiftLeft <$> parsePrec4 <*> (token PP.ShiftLeft *> parseExpression))
+                           , TM.try (ShiftRight <$> parsePrec4 <*> (token PP.ShiftRight *> parseExpression))
+                           , parsePrec4
+                           ]
     parsePrec4 = TM.choice [ TM.try (Add <$> parsePrec3 <*> (token PP.Plus *> parseExpression))
                            , parsePrec3
                            ]
@@ -261,6 +265,21 @@ parseExpression = parsePrec4
                            , TM.between (token PP.LParen) (token PP.RParen) parseExpression
                            ]
 
+-- | A parser for the dynamic clause in an export statement
+--
+-- > *[<space>]:size
+parseDynamicExport :: P.SleighM DynamicExport
+parseDynamicExport = do
+  token PP.Asterisk
+  spc <- parseAddrSpace
+  token PP.Colon
+  sz <- parseNumber
+  return DynamicExport { dynamicAddressSpace = spc
+                       , dynamicSize = sz
+                       }
+  where
+    parseAddrSpace = TM.optional (TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)
+
 parseSemantics :: P.SleighM [Stmt]
 parseSemantics = TM.many parseStatement
   where
@@ -273,7 +292,8 @@ parseSemantics = TM.many parseStatement
       return s
     parseExportStmt = do
       token PP.Export
-      v <- TM.choice [ TM.try (ExportedIdentifier <$> parseIdentifier)
+      v <- TM.choice [ TM.try (ExportedDynamic <$> parseDynamicExport <*> parseIdentifier)
+                     , TM.try (ExportedIdentifier <$> parseIdentifier)
                      , ExportedConstant <$> parseWord <*> (token PP.Colon >> parseWord)
                      ]
       return (Export v)
@@ -297,12 +317,15 @@ parseConstructor = do
   -- Note that manyTill consumes the end token, which is fine in this context
   dispTokens <- TM.manyTill TM.anySingle (token PP.Is)
   bp <- parseBitPattern
-  stmts <- TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics
+  disActionStmts <- TM.choice [ TM.try (TM.between (token PP.LBracket) (token PP.RBracket) parseSemantics)
+                              , pure []
+                              ]
+  semStmts <- TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics
   let con = Constructor { tableHeader = header
                         , displaySection = dispTokens
                         , bitPatterns = bp
-                        , disassemblyActions = DisassemblyActions
-                        , constructorStatements = stmts
+                        , disassemblyActions = disActionStmts
+                        , constructorStatements = semStmts
                         }
   P.recordConstructor con
   where

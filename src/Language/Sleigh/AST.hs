@@ -8,9 +8,9 @@ module Language.Sleigh.AST (
  , Macro(..)
  , Stmt(..)
  , Expr(..)
+ , DynamicExport(..)
  , ExportedValue(..)
  , TableHeader(..)
- , DisassemblyActions(..)
  , BitPattern(..)
  , Constraint(..)
  , Default(..)
@@ -169,23 +169,31 @@ data BitPattern = And BitPattern BitPattern
                 | Constraint !Constraint
                 deriving (Show)
 
-data DisassemblyActions = DisassemblyActions
-                        deriving  (Show)
-
 data Expr = Ref !Identifier
           | Dereference !Expr
           | AddressOf !Expr
           | Word_ !Word
+          -- Bits
           | Truncate !Expr !Word
+          | ShiftLeft !Expr !Expr
+          | ShiftRight !Expr !Expr
+          -- Arithmetic
           | Add !Expr !Expr
           | Mul !Expr !Expr
           | Funcall !Identifier [Expr]
           -- ^ Integer expression, number of bytes to truncate to
   deriving (Show)
 
+data DynamicExport =
+  DynamicExport { dynamicAddressSpace :: Maybe Identifier
+                , dynamicSize :: !Int
+                }
+  deriving (Show)
+
 data ExportedValue = ExportedIdentifier !Identifier
                    | ExportedConstant !Word !Word
                    -- ^ Constant, varnode size in bytes
+                   | ExportedDynamic !DynamicExport !Identifier
                    deriving (Show)
 
 data Stmt = Export !ExportedValue
@@ -203,7 +211,7 @@ data Constructor =
   Constructor { tableHeader :: TableHeader
               , displaySection :: [T.Positioned T.Token]
               , bitPatterns :: BitPattern
-              , disassemblyActions :: DisassemblyActions
+              , disassemblyActions :: [Stmt]
               , constructorStatements :: [Stmt]
               }
   deriving (Show)
