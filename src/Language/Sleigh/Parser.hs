@@ -241,29 +241,62 @@ parseBitPattern = parseBitConj
                                , Unconstrained <$> parseIdentifier
                                ]
 
+-- | Parse a single expression
+--
+-- Note that it would be ideal to be able to use
+-- @Control.Monad.Combinators.Expr@ from the parser-combinators library;
+-- however, a few of the productions have irregular parses that don't quite fit
+-- into the model of that module.
+--
+-- Also note that the manual look ahead and casing in this function (as opposed
+-- to a more idiomatic nested 'TM.try' and 'TM.choice' structure) significantly
+-- increases performance.
 parseExpression :: P.SleighM Expr
 parseExpression = parsePrec10
   where
-    parsePrec10 = TM.choice [ TM.try (BitwiseOr <$> parsePrec8 <*> (token PP.BitwiseOr *> parseExpression))
-                            , parsePrec8
-                            ]
-    parsePrec8 = TM.choice [ TM.try (BitwiseAnd <$> parsePrec5 <*> (token PP.Amp *> parseExpression))
-                           , parsePrec5
-                           ]
-    parsePrec5 = TM.choice [ TM.try (ShiftLeft <$> parsePrec4 <*> (token PP.ShiftLeft *> parseExpression))
-                           , TM.try (ShiftRight <$> parsePrec4 <*> (token PP.ShiftRight *> parseExpression))
-                           , parsePrec4
-                           ]
-    parsePrec4 = TM.choice [ TM.try (Add <$> parsePrec3 <*> (token PP.Plus *> parseExpression))
-                           , TM.try (Sub <$> parsePrec3 <*> (token PP.Minus *> parseExpression))
-                           , parsePrec3
-                           ]
-    parsePrec3 = TM.choice [ TM.try (Mul <$> parsePrec2 <*> (token PP.Asterisk *> parseExpression))
-                           , parsePrec2
-                           ]
+    parsePrec10 = do
+      lhs <- parsePrec8
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.BitwiseOr -> BitwiseOr <$> pure lhs <*> (token PP.BitwiseOr *> parseExpression)
+        _ -> pure lhs
+    parsePrec8 = do
+      lhs <- parsePrec7
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.Amp -> BitwiseAnd <$> pure lhs <*> (token PP.Amp *> parseExpression)
+        _ -> pure lhs
+    parsePrec7 = do
+      lhs <- parsePrec5
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.Equals -> RelEquals <$> pure lhs <*> (token PP.Equals *> parseExpression)
+        PP.NotEquals -> RelNotEquals <$> pure lhs <*> (token PP.NotEquals *> parseExpression)
+        _ -> pure lhs
+    parsePrec5 = do
+      lhs <- parsePrec4
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.ShiftLeft -> ShiftLeft <$> pure lhs <*> (token PP.ShiftLeft *> parseExpression)
+        PP.ShiftRight -> ShiftRight <$> pure lhs <*> (token PP.ShiftRight *> parseExpression)
+        _ -> pure lhs
+    parsePrec4 = do
+      lhs <- parsePrec3
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.Plus -> Add <$> pure lhs <*> (token PP.Plus *> parseExpression)
+        PP.Minus -> Sub <$> pure lhs <*> (token PP.Minus *> parseExpression)
+        _ -> pure lhs
+    parsePrec3 = do
+      lhs <- parsePrec2
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.Asterisk -> Mul <$> pure lhs <*> (token PP.Asterisk *> parseExpression)
+        _ -> pure lhs
     parsePrec2 = TM.choice [ TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
                            , TM.try (Truncate <$> parsePrec1 <*> (token PP.Colon *> parseWord))
+                           , TM.try (Negate <$> (token PP.Minus *> parsePrec1))
                            , parsePrec1
                            ]
     parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))

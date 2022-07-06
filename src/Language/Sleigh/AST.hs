@@ -175,6 +175,7 @@ data Expr = Ref !Identifier
           | Word_ !Word
           -- Bits
           | Truncate !Expr !Word
+          -- ^ Integer expression, number of bytes to truncate to
           | ShiftLeft !Expr !Expr
           | ShiftRight !Expr !Expr
           -- Arithmetic
@@ -184,7 +185,12 @@ data Expr = Ref !Identifier
           | BitwiseOr !Expr !Expr
           | BitwiseAnd !Expr !Expr
           | Funcall !Identifier [Expr]
-          -- ^ Integer expression, number of bytes to truncate to
+          | Negate !Expr
+          -- ^ Unary arithmetic negation
+
+          -- Relational comparisons
+          | RelEquals !Expr !Expr
+          | RelNotEquals !Expr !Expr
   deriving (Show)
 
 data DynamicExport =
