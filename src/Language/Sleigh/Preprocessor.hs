@@ -274,6 +274,8 @@ anyToken = do
                  , TM.try (token StringLiteral stringLiteral)
                  , TM.try (token Number (TMC.string "0x" *> TMCL.hexadecimal))
                  , TM.try (token Number TMCL.decimal)
+                 , TM.try (stoken Amp "$and") -- See Note [Alternative Bitwise Operators]
+                 , TM.try (stoken Amp "$or") -- See Note [Alternative Bitwise Operators]
                  , TM.try macroExpansion
                  , TM.try (stoken BitwiseNot "~")
                  , TM.try (stoken ShiftLeft "<<")
@@ -579,3 +581,27 @@ preprocessSleigh includePath filename contents = do
                      , _accumulatedTokens = mempty
                      , _conditionalStack = (True, [])
                      }
+
+{- Note [Alternative Bitwise Operators]
+
+The Ghidra manual notes:
+
+> Note that there are two syntax forms for the logical operators in a pattern
+> expression. When an expression is used as part of a constraint, the “$and” and
+> “$or” forms of the operators must be used in order to distinguish the bitwise
+> operators from the special pattern combining operators, ‘&’ and ‘|’ (as
+> described in Section 7.4.2, “The '&' and '|' Operators”). However inside the
+> square braces of the disassembly action section, ‘&’ and ‘|’ are interpreted
+> as the usual logical operators.
+
+In some contexts, the & symbol has additional meaning and the alternative form
+is required to avoid syntactic ambiguity.  We parse them the same way as we
+parse the normal operator and do not distinguish while parsing.
+
+The lexing rule must come before the macro expansion rule, otherwise it would
+attempt macro expansion and fail.
+
+The treatment in the parser would be incorrect if someone attempted to use
+`$and` in another context as a CPP macro. We assume that will not happen.
+
+-}

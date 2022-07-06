@@ -242,13 +242,20 @@ parseBitPattern = parseBitConj
                                ]
 
 parseExpression :: P.SleighM Expr
-parseExpression = parsePrec5
+parseExpression = parsePrec10
   where
+    parsePrec10 = TM.choice [ TM.try (BitwiseOr <$> parsePrec8 <*> (token PP.BitwiseOr *> parseExpression))
+                            , parsePrec8
+                            ]
+    parsePrec8 = TM.choice [ TM.try (BitwiseAnd <$> parsePrec5 <*> (token PP.Amp *> parseExpression))
+                           , parsePrec5
+                           ]
     parsePrec5 = TM.choice [ TM.try (ShiftLeft <$> parsePrec4 <*> (token PP.ShiftLeft *> parseExpression))
                            , TM.try (ShiftRight <$> parsePrec4 <*> (token PP.ShiftRight *> parseExpression))
                            , parsePrec4
                            ]
     parsePrec4 = TM.choice [ TM.try (Add <$> parsePrec3 <*> (token PP.Plus *> parseExpression))
+                           , TM.try (Sub <$> parsePrec3 <*> (token PP.Minus *> parseExpression))
                            , parsePrec3
                            ]
     parsePrec3 = TM.choice [ TM.try (Mul <$> parsePrec2 <*> (token PP.Asterisk *> parseExpression))

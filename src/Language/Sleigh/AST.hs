@@ -179,7 +179,10 @@ data Expr = Ref !Identifier
           | ShiftRight !Expr !Expr
           -- Arithmetic
           | Add !Expr !Expr
+          | Sub !Expr !Expr
           | Mul !Expr !Expr
+          | BitwiseOr !Expr !Expr
+          | BitwiseAnd !Expr !Expr
           | Funcall !Identifier [Expr]
           -- ^ Integer expression, number of bytes to truncate to
   deriving (Show)
