@@ -327,6 +327,7 @@ parseSemantics = TM.many parseStatement
     parseStatement = do
       s <- TM.choice [ TM.try parseExportStmt
                      , TM.try parseAssignStmt
+                     , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
                      , TM.try (ExprStmt <$> parseExpression)
                      ]
       token PP.Semi

@@ -213,6 +213,8 @@ data Stmt = Export !ExportedValue
           -- ^ LHS, RHS
           | ExprStmt !Expr
           -- ^ A bare expression (likely a macro expansion or an arch-specific uninterpreted function)
+          | Goto !Identifier
+          -- ^ A control flow transfer to the address held in the given variable
   deriving (Show)
 
 data TableHeader = Root
