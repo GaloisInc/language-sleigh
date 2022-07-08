@@ -222,9 +222,15 @@ parseAttach = do
   P.recordAttach attach
 
 parseBitPattern :: P.SleighM BitPattern
-parseBitPattern = parseBitConj
+parseBitPattern = parseBitDisj
   where
+    parseBitDisj = TM.choice [ TM.try disj, parseBitConj ]
     parseBitConj = TM.choice [ TM.try conj, parseAtomicBitPattern ]
+    disj = do
+      lhs <- parseBitConj
+      token PP.BitwiseOr
+      rhs <- parseBitPattern
+      return (Or lhs rhs)
     conj = do
       lhs <- parseAtomicBitPattern
       token PP.Amp
@@ -237,10 +243,11 @@ parseBitPattern = parseBitConj
       num <- parseNumber
       return (EqualityConstraint iden (fromIntegral num))
     parseAtomicBitPattern =
-      Constraint <$> TM.choice [ TM.try eqConstraint
-                               , TM.try (Unconstrained <$> parseIdentifier)
-                               , StringConstraint <$> parseString
-                               ]
+      TM.choice [ TM.try (Constraint <$> eqConstraint)
+                , TM.try ((Constraint . Unconstrained) <$> parseIdentifier)
+                , TM.try ((Constraint . StringConstraint) <$> parseString)
+                , TM.between (token PP.LParen) (token PP.RParen) parseBitPattern
+                ]
 
 -- | Parse a single expression
 --
