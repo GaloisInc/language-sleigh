@@ -215,6 +215,8 @@ data Stmt = Export !ExportedValue
           -- ^ A bare expression (likely a macro expansion or an arch-specific uninterpreted function)
           | Goto !Identifier
           -- ^ A control flow transfer to the address held in the given variable
+          | If !Expr [Stmt] [Stmt]
+          -- ^ If-then-else statements
   deriving (Show)
 
 data TableHeader = Root

@@ -324,12 +324,16 @@ parseDynamicExport = do
 parseSemantics :: P.SleighM [Stmt]
 parseSemantics = TM.many parseStatement
   where
+    parseStatementWithoutSemi =
+      TM.choice [ TM.try parseExportStmt
+                , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
+                  -- , TM.try parseIfThenElse
+                , TM.try parseSimpleIf
+                , TM.try parseAssignStmt
+                , TM.try (ExprStmt <$> parseExpression)
+                ]
     parseStatement = do
-      s <- TM.choice [ TM.try parseExportStmt
-                     , TM.try parseAssignStmt
-                     , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
-                     , TM.try (ExprStmt <$> parseExpression)
-                     ]
+      s <- parseStatementWithoutSemi
       token PP.Semi
       return s
     parseExportStmt = do
@@ -340,6 +344,31 @@ parseSemantics = TM.many parseStatement
                      ]
       return (Export v)
     parseAssignStmt = Assign <$> parseExpression <*> (token PP.Assign *> parseExpression)
+
+    -- Parse a simple statement of the form:
+    --
+    -- > if cond stmt;
+    --
+    -- This doesn't easily fit the normal block form very well because of the
+    -- semicolon placement, so make a simple rule for it.
+    parseSimpleIf = do
+      tokenIdentifier "if"
+      cond <- parseExpression
+      stmt <- parseStatementWithoutSemi
+      return (If cond [stmt] [])
+
+    -- parseBlock = TM.choice [ TM.try (TM.between (token PP.LBrace) (token PP.RBrace) (TM.many parseStatement))
+    --                        , (:[]) <$> parseStatement
+    --                        ]
+    -- -- The else clause is optional, so permit that
+    -- parseElse = TM.choice [ TM.try (tokenIdentifier "else" >> parseBlock), pure [] ]
+
+    -- parseIfThenElse = do
+    --   tokenIdentifier "if"
+    --   cond <- parseExpression
+    --   onTrue <- parseBlock
+    --   onFalse <- parseElse
+    --   return (If cond onTrue onFalse)
 
 parseMacro :: P.SleighM ()
 parseMacro = do
