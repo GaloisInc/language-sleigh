@@ -269,6 +269,9 @@ stringLiteral = do
 anyToken :: PP ()
 anyToken = do
   t <- TM.choice [ TM.try (stoken SignedGreaterEquals "s>=")
+                 , TM.try (stoken SignedGreaterThan "s>")
+                 , TM.try (stoken SignedLessEquals "s<=")
+                 , TM.try (stoken SignedLessThan "s<")
                  , TM.try (stoken SDiv "s/")
                  , TM.try (stoken SMod "s%")
                  , TM.try (token StringLiteral stringLiteral)

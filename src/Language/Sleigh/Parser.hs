@@ -268,11 +268,24 @@ parseExpression = parsePrec10
         PP.Amp -> BitwiseAnd <$> pure lhs <*> (token PP.Amp *> parseExpression)
         _ -> pure lhs
     parsePrec7 = do
-      lhs <- parsePrec5
+      lhs <- parsePrec6
       next <- TM.lookAhead TM.anySingle
       case PP.tokenVal next of
         PP.Equals -> RelEquals <$> pure lhs <*> (token PP.Equals *> parseExpression)
         PP.NotEquals -> RelNotEquals <$> pure lhs <*> (token PP.NotEquals *> parseExpression)
+        _ -> pure lhs
+    parsePrec6 = do
+      lhs <- parsePrec5
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.LessThan -> RelLT <$> pure lhs <*> (token PP.LessThan *> parseExpression)
+        PP.LessEquals -> RelLE <$> pure lhs <*> (token PP.LessEquals *> parseExpression)
+        PP.GreaterThan -> RelGT <$> pure lhs <*> (token PP.GreaterThan *> parseExpression)
+        PP.GreaterEquals -> RelGE <$> pure lhs <*> (token PP.GreaterEquals *> parseExpression)
+        PP.SignedLessThan -> RelSLT <$> pure lhs <*> (token PP.SignedLessThan *> parseExpression)
+        PP.SignedLessEquals -> RelSLE <$> pure lhs <*> (token PP.SignedLessEquals *> parseExpression)
+        PP.SignedGreaterThan -> RelSGT <$> pure lhs <*> (token PP.SignedGreaterThan *> parseExpression)
+        PP.SignedGreaterEquals -> RelSGE <$> pure lhs <*> (token PP.SignedGreaterEquals *> parseExpression)
         _ -> pure lhs
     parsePrec5 = do
       lhs <- parsePrec4

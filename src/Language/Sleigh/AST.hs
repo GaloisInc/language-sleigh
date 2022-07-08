@@ -194,6 +194,14 @@ data Expr = Ref !Identifier
           -- Relational comparisons
           | RelEquals !Expr !Expr
           | RelNotEquals !Expr !Expr
+          | RelLT !Expr !Expr
+          | RelLE !Expr !Expr
+          | RelGT !Expr !Expr
+          | RelGE !Expr !Expr
+          | RelSLT !Expr !Expr
+          | RelSLE !Expr !Expr
+          | RelSGT !Expr !Expr
+          | RelSGE !Expr !Expr
   deriving (Show)
 
 data DynamicExport =

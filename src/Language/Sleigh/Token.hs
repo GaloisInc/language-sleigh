@@ -38,8 +38,11 @@ data Token = StringLiteral DT.Text
            | NotEquals
            | SignedGreaterEquals
            | GreaterEquals
+           | SignedGreaterThan
            | GreaterThan
+           | SignedLessEquals
            | LessEquals
+           | SignedLessThan
            | LessThan
            | BitwiseNot
            | BitwiseXor
@@ -93,8 +96,11 @@ instance PP.Pretty Token where
       Not -> "!"
       SignedGreaterEquals -> "s>="
       GreaterEquals -> ">="
+      SignedGreaterThan -> "s>"
       GreaterThan -> ">"
+      SignedLessEquals -> "s<="
       LessEquals -> "<="
+      SignedLessThan -> "s<"
       LessThan -> "<"
       BitwiseNot -> "~"
       Define -> "define"
