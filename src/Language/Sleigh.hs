@@ -9,6 +9,7 @@ module Language.Sleigh (
   , PP.preprocessSleigh
   , PP.Token(..)
   , PP.Positioned(..)
+  , LSI.Identifier(..)
   ) where
 
 import qualified Data.ByteString as BS
@@ -19,6 +20,7 @@ import qualified Prettyprinter as PP
 import qualified Text.Megaparsec as TM
 
 import qualified Language.Sleigh.AST as A
+import qualified Language.Sleigh.Identifier as LSI
 import qualified Language.Sleigh.ParserMonad as PM
 import qualified Language.Sleigh.Parser as P
 import qualified Language.Sleigh.Preprocessor as PP

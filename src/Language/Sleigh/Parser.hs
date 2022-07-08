@@ -48,7 +48,7 @@ tokenIdentifier t = TM.satisfy asIdent >> return ()
   where
     asIdent tk =
       case PP.tokenVal tk of
-        PP.Identifier i -> I.identifierText i == DT.pack t
+        PP.Ident i -> I.identifierText i == DT.pack t
         _ -> False
 
 parseString :: P.SleighM DT.Text
@@ -62,7 +62,7 @@ parseIdentifier :: P.SleighM Identifier
 parseIdentifier = TM.try $ do
   tk <- TM.anySingle <?> "Identifier"
   case tk of
-    PP.WithPos { PP.tokenVal = PP.Identifier i } -> return i
+    PP.WithPos { PP.tokenVal = PP.Ident i } -> return i
     _ -> TM.empty
 
 parseNumber :: P.SleighM Int

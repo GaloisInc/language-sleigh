@@ -56,3 +56,16 @@ executable sleigh-parser
                       optparse-applicative,
                       prettyprinter,
                       megaparsec
+
+test-suite sleigh-parser-tests
+  type: exitcode-stdio-1.0
+  main-is: SleighTests.hs
+  hs-source-dirs: tests
+  build-depends: language-sleigh,
+                 base,
+                 bytestring,
+                 megaparsec,
+                 tasty,
+                 tasty-hunit
+  default-language: Haskell2010
+  ghc-options:   -Wall -Wcompat

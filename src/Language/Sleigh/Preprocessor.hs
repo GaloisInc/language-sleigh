@@ -314,7 +314,7 @@ anyToken = do
                  , TM.try (textToken Export "export")
                  , TM.try (textToken Macro "macro")
                  , TM.try (textToken Is "is")
-                 , TM.try (token Identifier identifier)
+                 , TM.try (token Ident identifier)
                  ]
   emitToken <- CL.use (conditionalStack . CL._1)
   when emitToken $ accumulatedTokens %= (Seq.|> t)
@@ -334,7 +334,7 @@ parsePreprocessorDefine = do
   -- The definition can be either a bare identifier or a quoted literal; we have
   -- to unwrap the type wrapper from identifiers
   let asLit = StringLiteral <$> stringLiteral
-  let asIdent = Identifier <$> identifier
+  let asIdent = Ident <$> identifier
   value <- lexeme (TM.try asLit <|> asIdent) <?> "Preprocessor definition value"
   parserDefines CL.%= Map.insert ident value
 

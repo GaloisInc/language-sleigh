@@ -12,7 +12,7 @@ import qualified Language.Sleigh.Identifier as I
 
 data Token = StringLiteral DT.Text
            | Number Int
-           | Identifier I.Identifier
+           | Ident I.Identifier
            -- Syntax
            | Colon
            | Assign
@@ -62,7 +62,7 @@ instance PP.Pretty Token where
     case t of
       StringLiteral s -> PP.pretty '"' <> PP.viaShow s <> PP.pretty '"'
       Number i -> PP.pretty i
-      Identifier i -> "Ident" <> PP.parens (PP.pretty i)
+      Ident i -> "Ident" <> PP.parens (PP.pretty i)
       Colon -> ":"
       Assign -> "="
       Comma -> ","
