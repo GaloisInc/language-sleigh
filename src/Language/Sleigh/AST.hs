@@ -73,6 +73,8 @@ data Definition = DefEndianness !Endianness
                 -- ^ Name, fields
                 | DefTokenFields !Identifier !Word [TokenField]
                 -- ^ Name, number of bits, fields
+                | DefPCodeOp !Identifier
+                -- ^ The name of a custom pcode operation
   deriving (Show)
 
 -- | Interpretations for attached variables

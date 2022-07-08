@@ -374,6 +374,12 @@ parseConstructor = do
                 , (Table <$> parseIdentifier <* token PP.Colon)
                 ]
 
+parsePCodeOp :: P.SleighM Definition
+parsePCodeOp = do
+  tokenIdentifier "pcodeop"
+  name <- parseIdentifier
+  return (DefPCodeOp name)
+
 parseDefinition :: P.SleighM ()
 parseDefinition = do
   token PP.Define
@@ -385,6 +391,7 @@ parseDefinition = do
                    , TM.try parseTokens
                    , TM.try parseEndian
                    , TM.try parseInstructionAlignment
+                   , TM.try parsePCodeOp
                    ]
   token PP.Semi
   P.recordDefinition def
