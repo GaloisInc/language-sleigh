@@ -1,0 +1,57 @@
+# This CI configuration is inspired by
+#
+# https://kodimensional.dev/github-actions
+#
+# It builds with a majority of the latest compiler releases from each major GHC
+# revision on Linux and builds macOS and Windows against the latest GHC.
+name: CI Matrix
+
+# Trigger the workflow on push or pull request, but only for the master branch
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['8.10.7', '9.2.1']
+        cabal: ['3.2.0.0']
+        os: [ubuntu-latest]
+
+    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }} language-sleigh
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-haskell@v1
+      id: setup-haskell-cabal
+      name: Setup Haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+
+    - uses: actions/cache@v2
+      name: Cache cabal-store
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles(format('cabal.GHC-{0}.config', matrix.ghc)) }}-${{ github.sha }}
+        restore-keys: |
+          cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles(format('cabal.GHC-{0}.config', matrix.ghc)) }}-
+
+    - name: Build
+      run: |
+        cabal configure pkg:language-sleigh --write-ghc-environment-files=always -j1 --enable-tests
+        cabal build pkg:language-sleigh
+
+    - name: Haddock
+      run: |
+        cabal haddock pkg:language-sleigh
+
+    - name: Test
+      run: |
+        cabal test pkg:language-sleigh
