@@ -238,7 +238,8 @@ parseBitPattern = parseBitConj
       return (EqualityConstraint iden (fromIntegral num))
     parseAtomicBitPattern =
       Constraint <$> TM.choice [ TM.try eqConstraint
-                               , Unconstrained <$> parseIdentifier
+                               , TM.try (Unconstrained <$> parseIdentifier)
+                               , StringConstraint <$> parseString
                                ]
 
 -- | Parse a single expression

@@ -164,6 +164,7 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
 data Constraint = EqualityConstraint !Identifier !Word
                 -- ^ field name, value
                 | Unconstrained !Identifier
+                | StringConstraint DT.Text
                 deriving (Show)
 
 data BitPattern = And BitPattern BitPattern
