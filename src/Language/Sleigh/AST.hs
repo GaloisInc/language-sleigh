@@ -176,6 +176,7 @@ data Expr = Ref !Identifier
           | Dereference !Expr
           | AddressOf !Expr
           | Word_ !Word
+          | VarNodeRef !Identifier
           -- Bits
           | Truncate !Expr !Word
           -- ^ Integer expression, number of bytes to truncate to
@@ -225,6 +226,7 @@ data Stmt = Export !ExportedValue
           -- ^ A control flow transfer to the address held in the given variable
           | If !Expr [Stmt] [Stmt]
           -- ^ If-then-else statements
+          | Return !Expr
   deriving (Show)
 
 data TableHeader = Root

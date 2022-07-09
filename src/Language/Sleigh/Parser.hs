@@ -323,7 +323,8 @@ parseExpression = parsePrec10
     parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))
                            , TM.try (Ref <$> parseIdentifier)
                            , TM.try (Word_ <$> parseWord)
-                           , TM.between (token PP.LParen) (token PP.RParen) parseExpression
+                           , TM.try (TM.between (token PP.LParen) (token PP.RParen) parseExpression)
+                           , VarNodeRef <$> TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier
                            ]
 
 -- | A parser for the dynamic clause in an export statement
@@ -347,6 +348,7 @@ parseSemantics = TM.many parseStatement
     parseStatementWithoutSemi =
       TM.choice [ TM.try parseExportStmt
                 , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
+                , TM.try (Return <$> (tokenIdentifier "return" *> parseExpression))
                   -- , TM.try parseIfThenElse
                 , TM.try parseSimpleIf
                 , TM.try parseAssignStmt
