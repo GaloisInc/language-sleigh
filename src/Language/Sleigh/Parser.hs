@@ -343,14 +343,20 @@ parseDynamicExport = do
   where
     parseAddrSpace = TM.optional (TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)
 
+parseJumpTarget :: P.SleighM JumpTarget
+parseJumpTarget =
+  TM.choice [ TM.try (VarNodeTarget <$> TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)
+            , IdentifierTarget <$> parseIdentifier
+            ]
+
 parseSemantics :: P.SleighM [Stmt]
 parseSemantics = TM.many parseStatement
   where
     parseStatementWithoutSemi =
       TM.choice [ TM.try parseExportStmt
-                , TM.try (Goto <$> (tokenIdentifier "goto" *> parseExpression))
-                , TM.try (Return <$> (tokenIdentifier "return" *> parseExpression))
-                , TM.try (Call <$> (tokenIdentifier "call" *> parseExpression))
+                , TM.try (Goto <$> (tokenIdentifier "goto" *> parseJumpTarget))
+                , TM.try (Return <$> (tokenIdentifier "return" *> parseJumpTarget))
+                , TM.try (Call <$> (tokenIdentifier "call" *> parseJumpTarget))
                 , TM.try (Build <$> (tokenIdentifier "build" *> parseIdentifier))
                 , TM.try (Local <$> (tokenIdentifier "local" *> parseIdentifier <* token PP.Assign) <*> parseExpression)
                   -- , TM.try parseIfThenElse

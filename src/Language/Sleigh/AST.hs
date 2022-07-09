@@ -19,6 +19,7 @@ module Language.Sleigh.AST (
  , ContextAttribute(..)
  , ContextField(..)
  , TokenField(..)
+ , JumpTarget(..)
  ) where
 
 import qualified Data.Foldable as F
@@ -218,20 +219,24 @@ data ExportedValue = ExportedIdentifier !Identifier
                    | ExportedDynamic !DynamicExport !Identifier
                    deriving (Show)
 
+data JumpTarget = IdentifierTarget !Identifier
+                | VarNodeTarget !Identifier
+                deriving (Show)
+
 data Stmt = Export !ExportedValue
           | Assign !Expr !Expr
           -- ^ LHS, RHS
           | ExprStmt !Expr
           -- ^ A bare expression (likely a macro expansion or an arch-specific uninterpreted function)
-          | Goto !Expr
+          | Goto !JumpTarget
           -- ^ A control flow transfer to the address held in the given variable
           --
           -- Note the target can be an identifier or a varnode; this could be a separate jump target type
           | If !Expr [Stmt] [Stmt]
           -- ^ If-then-else statements
-          | Call !Expr
+          | Call !JumpTarget
           -- ^ Call statements
-          | Return !Expr
+          | Return !JumpTarget
           -- ^ Return statements
           | Local !Identifier !Expr
           -- ^ Local definitions
