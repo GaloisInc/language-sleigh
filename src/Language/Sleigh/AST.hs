@@ -174,6 +174,10 @@ data BitPattern = And BitPattern BitPattern
                 deriving (Show)
 
 data Expr = Ref !Identifier
+          | DynamicRef (Maybe Identifier) !Int !Identifier
+          -- ^ This is the @*[foo]:n bar@ form, which is a reference to a
+          -- variable named @bar@ in address space @foo@, with an optional bit
+          -- width. The address space can be elided: @*:n bar@
           | Dereference !Expr
           | AddressOf !Expr
           | Word_ !Word

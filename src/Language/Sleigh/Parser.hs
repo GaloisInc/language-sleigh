@@ -314,11 +314,12 @@ parseExpression = parsePrec10
       case PP.tokenVal next of
         PP.Asterisk -> Mul <$> pure lhs <*> (token PP.Asterisk *> parseExpression)
         _ -> pure lhs
-    parsePrec2 = TM.choice [ TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
-                           , TM.try (BitNot <$> (token PP.BitwiseNot *> parsePrec1))
+    parsePrec2 = TM.choice [ TM.try (BitNot <$> (token PP.BitwiseNot *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
                            , TM.try (Truncate <$> parsePrec1 <*> (token PP.Colon *> parseWord))
                            , TM.try (Negate <$> (token PP.Minus *> parsePrec1))
+                           , TM.try (DynamicRef <$> (token PP.Asterisk *> TM.optional (TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)) <*> (token PP.Colon *> parseNumber) <*> parseIdentifier)
+                           , TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
                            , parsePrec1
                            ]
     parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))
