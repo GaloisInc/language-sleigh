@@ -227,6 +227,8 @@ data Stmt = Export !ExportedValue
           -- ^ A control flow transfer to the address held in the given variable
           | If !Expr [Stmt] [Stmt]
           -- ^ If-then-else statements
+          | Call !Expr
+          -- ^ Call statements
           | Return !Expr
           -- ^ Return statements
           | Local !Identifier !Expr

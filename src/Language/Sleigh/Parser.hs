@@ -350,6 +350,7 @@ parseSemantics = TM.many parseStatement
       TM.choice [ TM.try parseExportStmt
                 , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
                 , TM.try (Return <$> (tokenIdentifier "return" *> parseExpression))
+                , TM.try (Call <$> (tokenIdentifier "call" *> parseExpression))
                 , TM.try (Local <$> (tokenIdentifier "local" *> parseIdentifier <* token PP.Assign) <*> parseExpression)
                   -- , TM.try parseIfThenElse
                 , TM.try parseSimpleIf
