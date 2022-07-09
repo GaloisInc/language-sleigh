@@ -223,8 +223,10 @@ data Stmt = Export !ExportedValue
           -- ^ LHS, RHS
           | ExprStmt !Expr
           -- ^ A bare expression (likely a macro expansion or an arch-specific uninterpreted function)
-          | Goto !Identifier
+          | Goto !Expr
           -- ^ A control flow transfer to the address held in the given variable
+          --
+          -- Note the target can be an identifier or a varnode; this could be a separate jump target type
           | If !Expr [Stmt] [Stmt]
           -- ^ If-then-else statements
           | Call !Expr

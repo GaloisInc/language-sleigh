@@ -348,7 +348,7 @@ parseSemantics = TM.many parseStatement
   where
     parseStatementWithoutSemi =
       TM.choice [ TM.try parseExportStmt
-                , TM.try (Goto <$> (tokenIdentifier "goto" *> parseIdentifier))
+                , TM.try (Goto <$> (tokenIdentifier "goto" *> parseExpression))
                 , TM.try (Return <$> (tokenIdentifier "return" *> parseExpression))
                 , TM.try (Call <$> (tokenIdentifier "call" *> parseExpression))
                 , TM.try (Build <$> (tokenIdentifier "build" *> parseIdentifier))
