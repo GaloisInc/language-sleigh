@@ -233,6 +233,8 @@ data Stmt = Export !ExportedValue
           -- ^ Return statements
           | Local !Identifier !Expr
           -- ^ Local definitions
+          | Build !Identifier
+          -- ^ Inline PCode in a specific location
   deriving (Show)
 
 data TableHeader = Root
