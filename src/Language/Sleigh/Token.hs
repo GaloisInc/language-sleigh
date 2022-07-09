@@ -51,6 +51,7 @@ data Token = StringLiteral DT.Text
            | SDiv
            | Mod
            | SMod
+           | SignedShiftRight
            -- Special identifiers
            | Define
            | Attach
@@ -88,6 +89,7 @@ instance PP.Pretty Token where
       NotEquals -> "!="
       ShiftLeft -> "<<"
       ShiftRight -> ">>"
+      SignedShiftRight -> "s>>"
       Dollar -> "$"
       LogicalOr -> "||"
       LogicalAnd -> "&&"

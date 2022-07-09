@@ -188,6 +188,7 @@ data Expr = Ref !Identifier
           -- ^ Integer expression, number of bytes to truncate to
           | ShiftLeft !Expr !Expr
           | ShiftRight !Expr !Expr
+          | SignedShiftRight !Expr !Expr
           -- Arithmetic
           | Add !Expr !Expr
           | Sub !Expr !Expr

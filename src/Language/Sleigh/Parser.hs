@@ -307,6 +307,7 @@ parseExpression = parsePrec10
       case PP.tokenVal next of
         PP.ShiftLeft -> ShiftLeft <$> pure lhs <*> (token PP.ShiftLeft *> parseExpression)
         PP.ShiftRight -> ShiftRight <$> pure lhs <*> (token PP.ShiftRight *> parseExpression)
+        PP.SignedShiftRight -> SignedShiftRight <$> pure lhs <*> (token PP.SignedShiftRight *> parseExpression)
         _ -> pure lhs
     parsePrec4 = do
       lhs <- parsePrec3
