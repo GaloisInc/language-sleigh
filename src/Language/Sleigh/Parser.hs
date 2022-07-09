@@ -315,6 +315,7 @@ parseExpression = parsePrec10
         PP.Asterisk -> Mul <$> pure lhs <*> (token PP.Asterisk *> parseExpression)
         _ -> pure lhs
     parsePrec2 = TM.choice [ TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
+                           , TM.try (BitNot <$> (token PP.BitwiseNot *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
                            , TM.try (Truncate <$> parsePrec1 <*> (token PP.Colon *> parseWord))
                            , TM.try (Negate <$> (token PP.Minus *> parsePrec1))
