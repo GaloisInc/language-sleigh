@@ -227,6 +227,9 @@ data Stmt = Export !ExportedValue
           | If !Expr [Stmt] [Stmt]
           -- ^ If-then-else statements
           | Return !Expr
+          -- ^ Return statements
+          | Local !Identifier !Expr
+          -- ^ Local definitions
   deriving (Show)
 
 data TableHeader = Root
