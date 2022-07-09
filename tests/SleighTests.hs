@@ -30,6 +30,8 @@ preprocessorTests = TT.testGroup "Preprocessor Tests" (map toPreprocessorTest ex
                , ("& &", [LS.Amp, LS.Amp])
                , ("&&", [LS.LogicalAnd])
                , (":and", [LS.Colon, LS.Ident (LS.Identifier "and")])
+               , ("|", [LS.BitwiseOr])
+               , ("||", [LS.LogicalOr])
                ]
 
 allTests :: TT.TestTree
