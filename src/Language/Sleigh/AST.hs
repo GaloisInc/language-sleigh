@@ -167,6 +167,8 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
 data Constraint = EqualityConstraint !Identifier !Word
                 -- ^ field name, value
                 | InequalityConstraint !Identifier !Word
+                | IdentifierEqualityConstraint !Identifier !Identifier
+                | IdentifierInequalityConstraint !Identifier !Identifier
                 | Unconstrained !Identifier
                 | StringConstraint DT.Text
                 deriving (Show)

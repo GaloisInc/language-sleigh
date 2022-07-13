@@ -247,10 +247,21 @@ parseBitPattern = parseBitDisj
       token PP.NotEquals
       num <- parseNumber
       return (InequalityConstraint iden (fromIntegral num))
-
+    textEqConstraint = do
+      lhs <- parseIdentifier
+      token PP.Assign
+      rhs <- parseIdentifier
+      return (IdentifierEqualityConstraint lhs rhs)
+    textIneqConstraint = do
+      lhs <- parseIdentifier
+      token PP.NotEquals
+      rhs <- parseIdentifier
+      return (IdentifierEqualityConstraint lhs rhs)
     parseAtomicBitPattern =
       TM.choice [ TM.try (Constraint <$> eqConstraint)
                 , TM.try (Constraint <$> ineqConstraint)
+                , TM.try (Constraint <$> textEqConstraint)
+                , TM.try (Constraint <$> textIneqConstraint)
                 , TM.try ((Constraint . Unconstrained) <$> parseIdentifier)
                 , TM.try ((Constraint . StringConstraint) <$> parseString)
                 , TM.between (token PP.LParen) (token PP.RParen) parseBitPattern
