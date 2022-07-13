@@ -19,6 +19,7 @@ module Language.Sleigh.AST (
  , ContextAttribute(..)
  , ContextField(..)
  , TokenField(..)
+ , Label(..)
  , JumpTarget(..)
  ) where
 
@@ -225,8 +226,12 @@ data ExportedValue = ExportedIdentifier !Identifier
                    | ExportedDynamic !DynamicExport !Identifier
                    deriving (Show)
 
+newtype Label = Label Identifier
+  deriving (Show)
+
 data JumpTarget = IdentifierTarget !Identifier
                 | VarNodeTarget !Identifier
+                | LocalLabel !Label
                 deriving (Show)
 
 data Stmt = Export !ExportedValue
@@ -248,6 +253,8 @@ data Stmt = Export !ExportedValue
           -- ^ Local definitions
           | Build !Identifier
           -- ^ Inline PCode in a specific location
+          | LabelMarker !Label
+          -- ^ A local label for a goto target
   deriving (Show)
 
 data TableHeader = Root

@@ -355,6 +355,7 @@ parseDynamicExport = do
 parseJumpTarget :: P.SleighM JumpTarget
 parseJumpTarget =
   TM.choice [ TM.try (VarNodeTarget <$> TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)
+            , TM.try ((LocalLabel . Label) <$> TM.between (token PP.LessThan) (token PP.GreaterThan) parseIdentifier)
             , IdentifierTarget <$> parseIdentifier
             ]
 
@@ -373,9 +374,9 @@ parseSemantics = TM.many parseStatement
                 , TM.try parseAssignStmt
                 , TM.try (ExprStmt <$> parseExpression)
                 ]
+    parseLabelStmt = (LabelMarker . Label) <$> TM.between (token PP.LessThan) (token PP.GreaterThan) parseIdentifier
     parseStatement = do
-      s <- parseStatementWithoutSemi
-      token PP.Semi
+      s <- (parseStatementWithoutSemi <* token PP.Semi) <|> parseLabelStmt
       return s
     parseExportStmt = do
       token PP.Export
