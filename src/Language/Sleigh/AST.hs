@@ -21,6 +21,7 @@ module Language.Sleigh.AST (
  , TokenField(..)
  , Label(..)
  , JumpTarget(..)
+ , Semantics(..)
  ) where
 
 import qualified Data.Foldable as F
@@ -267,12 +268,16 @@ data TableHeader = Root
                  | Table Identifier
                  deriving  (Show)
 
+data Semantics = SemanticsBody [Stmt]
+               | Unimplemented
+               deriving (Show)
+
 data Constructor =
   Constructor { tableHeader :: TableHeader
               , displaySection :: [T.Positioned T.Token]
               , bitPatterns :: BitPattern
               , disassemblyActions :: [Stmt]
-              , constructorStatements :: [Stmt]
+              , constructorStatements :: Semantics
               }
   deriving (Show)
 

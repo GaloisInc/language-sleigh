@@ -444,7 +444,9 @@ parseConstructor = do
   disActionStmts <- TM.choice [ TM.try (TM.between (token PP.LBracket) (token PP.RBracket) parseSemantics)
                               , pure []
                               ]
-  semStmts <- TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics
+  semStmts <- TM.choice [ TM.try (SemanticsBody <$> TM.between (token PP.LBrace) (token PP.RBrace) parseSemantics)
+                        , Unimplemented <$ tokenIdentifier "unimpl"
+                        ]
   let con = Constructor { tableHeader = header
                         , displaySection = dispTokens
                         , bitPatterns = bp
