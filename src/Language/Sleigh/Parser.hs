@@ -327,6 +327,10 @@ parseExpression = parsePrec10
       next <- TM.lookAhead TM.anySingle
       case PP.tokenVal next of
         PP.Asterisk -> Mul <$> pure lhs <*> (token PP.Asterisk *> parseExpression)
+        PP.SDiv -> SignedDiv <$> pure lhs <*> (token PP.SDiv *> parseExpression)
+        PP.Div -> Div <$> pure lhs <*> (token PP.Div *> parseExpression)
+        PP.SMod -> SignedMod <$> pure lhs <*> (token PP.SMod *> parseExpression)
+        PP.Mod -> Mod <$> pure lhs <*> (token PP.Mod *> parseExpression)
         _ -> pure lhs
     parsePrec2 = TM.choice [ TM.try (BitNot <$> (token PP.BitwiseNot *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))

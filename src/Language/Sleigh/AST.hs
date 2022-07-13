@@ -194,6 +194,10 @@ data Expr = Ref !Identifier
           | Add !Expr !Expr
           | Sub !Expr !Expr
           | Mul !Expr !Expr
+          | Div !Expr !Expr
+          | Mod !Expr !Expr
+          | SignedDiv !Expr !Expr
+          | SignedMod !Expr !Expr
           | BitwiseOr !Expr !Expr
           | BitwiseAnd !Expr !Expr
           | BitwiseXor !Expr !Expr
