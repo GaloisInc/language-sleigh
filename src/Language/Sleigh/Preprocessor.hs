@@ -311,7 +311,7 @@ anyToken = do
                  , TM.try (stoken Asterisk "*")
                  , TM.try (stoken Plus "+")
                  , TM.try (stoken Minus "-")
-                 , TM.try (stoken Not "!")
+                 , TM.try (stoken Exclamation "!")
                  , TM.try (textToken Define "define")
                  , TM.try (textToken Attach "attach")
                  , TM.try (textToken Variables "variables")

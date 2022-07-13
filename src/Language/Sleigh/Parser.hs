@@ -334,6 +334,7 @@ parseExpression = parsePrec10
                            , TM.try (Negate <$> (token PP.Minus *> parsePrec1))
                            , TM.try (DynamicRef <$> (token PP.Asterisk *> TM.optional (TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)) <*> (token PP.Colon *> parseNumber) <*> parseIdentifier)
                            , TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
+                           , TM.try (LogicalNot <$> (token PP.Exclamation *> parsePrec1))
                            , parsePrec1
                            ]
     parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))

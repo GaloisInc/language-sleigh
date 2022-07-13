@@ -201,7 +201,8 @@ data Expr = Ref !Identifier
           | Funcall !Identifier [Expr]
           | Negate !Expr
           -- ^ Unary arithmetic negation
-
+          -- Logical operations
+          | LogicalNot !Expr
           -- Relational comparisons
           | RelEquals !Expr !Expr
           | RelNotEquals !Expr !Expr
