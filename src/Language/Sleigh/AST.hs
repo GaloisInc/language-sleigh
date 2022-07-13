@@ -196,6 +196,7 @@ data Expr = Ref !Identifier
           | Mul !Expr !Expr
           | BitwiseOr !Expr !Expr
           | BitwiseAnd !Expr !Expr
+          | BitwiseXor !Expr !Expr
           | BitNot !Expr
           | Funcall !Identifier [Expr]
           | Negate !Expr

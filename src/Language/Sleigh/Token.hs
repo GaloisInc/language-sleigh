@@ -45,7 +45,7 @@ data Token = StringLiteral DT.Text
            | SignedLessThan
            | LessThan
            | BitwiseNot
-           | BitwiseXor
+           | Caret
            | Not
            | Div
            | SDiv
@@ -94,7 +94,7 @@ instance PP.Pretty Token where
       LogicalOr -> "||"
       LogicalAnd -> "&&"
       BitwiseOr -> "|"
-      BitwiseXor -> "^"
+      Caret -> "^"
       Not -> "!"
       SignedGreaterEquals -> "s>="
       GreaterEquals -> ">="

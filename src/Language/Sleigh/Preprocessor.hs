@@ -303,7 +303,7 @@ anyToken = do
                  , TM.try (stoken LogicalAnd "&&")
                  , TM.try (stoken LogicalOr "||")
                  , TM.try (stoken BitwiseOr "|")
-                 , TM.try (stoken BitwiseXor "^")
+                 , TM.try (stoken Caret "^")
                  , TM.try (stoken Amp "&")
                  , TM.try (stoken Dollar "$")
                  , TM.try (stoken Div "/")

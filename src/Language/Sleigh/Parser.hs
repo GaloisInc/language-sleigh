@@ -270,10 +270,16 @@ parseExpression :: P.SleighM Expr
 parseExpression = parsePrec10
   where
     parsePrec10 = do
-      lhs <- parsePrec8
+      lhs <- parsePrec9
       next <- TM.lookAhead TM.anySingle
       case PP.tokenVal next of
         PP.BitwiseOr -> BitwiseOr <$> pure lhs <*> (token PP.BitwiseOr *> parseExpression)
+        _ -> pure lhs
+    parsePrec9 = do
+      lhs <- parsePrec8
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.Caret -> BitwiseXor <$> pure lhs <*> (token PP.Caret *> parseExpression)
         _ -> pure lhs
     parsePrec8 = do
       lhs <- parsePrec7
