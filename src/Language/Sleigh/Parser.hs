@@ -339,6 +339,8 @@ parseExpression = parsePrec12
       case PP.tokenVal next of
         PP.Plus -> Add <$> pure lhs <*> (token PP.Plus *> parseExpression)
         PP.Minus -> Sub <$> pure lhs <*> (token PP.Minus *> parseExpression)
+        PP.FAdd -> FloatAdd <$> pure lhs <*> (token PP.FAdd *> parseExpression)
+        PP.FSub -> FloatSub <$> pure lhs <*> (token PP.FSub *> parseExpression)
         _ -> pure lhs
     parsePrec3 = do
       lhs <- parsePrec2
@@ -349,11 +351,14 @@ parseExpression = parsePrec12
         PP.Div -> Div <$> pure lhs <*> (token PP.Div *> parseExpression)
         PP.SMod -> SignedMod <$> pure lhs <*> (token PP.SMod *> parseExpression)
         PP.Mod -> Mod <$> pure lhs <*> (token PP.Mod *> parseExpression)
+        PP.FDiv -> FloatDiv <$> pure lhs <*> (token PP.FDiv *> parseExpression)
+        PP.FMul -> FloatMul <$> pure lhs <*> (token PP.FMul *> parseExpression)
         _ -> pure lhs
     parsePrec2 = TM.choice [ TM.try (BitNot <$> (token PP.BitwiseNot *> parsePrec1))
                            , TM.try (AddressOf <$> (token PP.Amp *> parsePrec1))
                            , TM.try (Truncate <$> parsePrec1 <*> (token PP.Colon *> parseWord))
-                           , TM.try (Negate <$> (token PP.Minus *> parsePrec1))
+                           , TM.try (Negate <$> (token PP.Minus *> parsePrec2))
+                           , TM.try (FloatNegate <$> (token PP.FSub *> parsePrec2))
                            , TM.try (DynamicRef <$> (token PP.Asterisk *> TM.optional (TM.between (token PP.LBracket) (token PP.RBracket) parseIdentifier)) <*> (token PP.Colon *> parseNumber) <*> parseIdentifier)
                            , TM.try (Dereference <$> (token PP.Asterisk *> parsePrec1))
                            , TM.try (LogicalNot <$> (token PP.Exclamation *> parsePrec1))

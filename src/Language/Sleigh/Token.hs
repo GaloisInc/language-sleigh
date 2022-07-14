@@ -52,6 +52,10 @@ data Token = StringLiteral DT.Text
            | Mod
            | SMod
            | SignedShiftRight
+           | FAdd
+           | FDiv
+           | FMul
+           | FSub
            -- Special identifiers
            | Define
            | Attach
@@ -94,6 +98,10 @@ instance PP.Pretty Token where
       LogicalOr -> "||"
       LogicalAnd -> "&&"
       BitwiseOr -> "|"
+      FAdd -> "f+"
+      FSub -> "f-"
+      FDiv -> "f/"
+      FMul -> "f*"
       Caret -> "^"
       Exclamation -> "!"
       SignedGreaterEquals -> "s>="

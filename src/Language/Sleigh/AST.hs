@@ -212,6 +212,11 @@ data Expr = Ref !Identifier
           | Mod !Expr !Expr
           | SignedDiv !Expr !Expr
           | SignedMod !Expr !Expr
+          | FloatAdd !Expr !Expr
+          | FloatDiv !Expr !Expr
+          | FloatMul !Expr !Expr
+          | FloatSub !Expr !Expr
+          | FloatNegate !Expr
           | BitwiseOr !Expr !Expr
           | BitwiseAnd !Expr !Expr
           | BitwiseXor !Expr !Expr
