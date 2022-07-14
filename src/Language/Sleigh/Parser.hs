@@ -273,8 +273,20 @@ parseBitPattern = parseBitDisj
 -- to a more idiomatic nested 'TM.try' and 'TM.choice' structure) significantly
 -- increases performance.
 parseExpression :: P.SleighM Expr
-parseExpression = parsePrec10
+parseExpression = parsePrec12
   where
+    parsePrec12 = do
+      lhs <- parsePrec11
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.LogicalOr -> LogicalOr <$> pure lhs <*> (token PP.LogicalOr *> parseExpression)
+        _ -> pure lhs
+    parsePrec11 = do
+      lhs <- parsePrec10
+      next <- TM.lookAhead TM.anySingle
+      case PP.tokenVal next of
+        PP.LogicalAnd -> LogicalAnd <$> pure lhs <*> (token PP.LogicalAnd *> parseExpression)
+        _ -> pure lhs
     parsePrec10 = do
       lhs <- parsePrec9
       next <- TM.lookAhead TM.anySingle

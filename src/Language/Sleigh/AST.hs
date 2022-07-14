@@ -218,6 +218,8 @@ data Expr = Ref !Identifier
           -- ^ Unary arithmetic negation
           -- Logical operations
           | LogicalNot !Expr
+          | LogicalAnd !Expr !Expr
+          | LogicalOr !Expr !Expr
           -- Relational comparisons
           | RelEquals !Expr !Expr
           | RelNotEquals !Expr !Expr
