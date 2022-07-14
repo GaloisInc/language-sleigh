@@ -237,31 +237,26 @@ parseBitPattern = parseBitDisj
       rhs <- parseBitPattern
       return (And lhs rhs)
 
-    eqConstraint = do
-      iden <- parseIdentifier
-      token PP.Assign
-      num <- parseNumber
-      return (EqualityConstraint iden (fromIntegral num))
-    ineqConstraint = do
-      iden <- parseIdentifier
-      token PP.NotEquals
-      num <- parseNumber
-      return (InequalityConstraint iden (fromIntegral num))
-    textEqConstraint = do
-      lhs <- parseIdentifier
-      token PP.Assign
-      rhs <- parseIdentifier
-      return (IdentifierEqualityConstraint lhs rhs)
-    textIneqConstraint = do
-      lhs <- parseIdentifier
-      token PP.NotEquals
-      rhs <- parseIdentifier
-      return (IdentifierEqualityConstraint lhs rhs)
+    parseConstraintOperator =
+      TM.choice [ TM.try (CEq <$ token PP.Assign)
+                , TM.try (CNeq <$ token PP.NotEquals)
+                , TM.try (CLt <$ token PP.LessThan)
+                , TM.try (CGt <$ token PP.GreaterThan)
+                ]
+
+    parseConstraintOperand =
+      TM.choice [ TM.try (CIdent <$> parseIdentifier)
+                , TM.try (CWord <$> parseWord)
+                ]
+
+    parseConstraint = do
+      lhs <- parseConstraintOperand
+      op <- parseConstraintOperator
+      rhs <- parseConstraintOperand
+      return (RelationalConstraint lhs op rhs)
+
     parseAtomicBitPattern =
-      TM.choice [ TM.try (Constraint <$> eqConstraint)
-                , TM.try (Constraint <$> ineqConstraint)
-                , TM.try (Constraint <$> textEqConstraint)
-                , TM.try (Constraint <$> textIneqConstraint)
+      TM.choice [ TM.try (Constraint <$> parseConstraint)
                 , TM.try ((Constraint . Unconstrained) <$> parseIdentifier)
                 , TM.try ((Constraint . StringConstraint) <$> parseString)
                 , TM.between (token PP.LParen) (token PP.RParen) parseBitPattern

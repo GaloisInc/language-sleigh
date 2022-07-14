@@ -22,6 +22,8 @@ module Language.Sleigh.AST (
  , Label(..)
  , JumpTarget(..)
  , Semantics(..)
+ , ConstraintOperand(..)
+ , ConstraintOperator(..)
  ) where
 
 import qualified Data.Foldable as F
@@ -163,12 +165,18 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
 
   deriving (Show)
 
+data ConstraintOperand = CIdent !Identifier
+                       | CWord !Word
+                       deriving (Show)
+
+data ConstraintOperator = CEq
+                        | CNeq
+                        | CLt
+                        | CGt
+                        deriving (Show)
+
 -- | Constraints in bit patterns
-data Constraint = EqualityConstraint !Identifier !Word
-                -- ^ field name, value
-                | InequalityConstraint !Identifier !Word
-                | IdentifierEqualityConstraint !Identifier !Identifier
-                | IdentifierInequalityConstraint !Identifier !Identifier
+data Constraint = RelationalConstraint !ConstraintOperand !ConstraintOperator !ConstraintOperand
                 | Unconstrained !Identifier
                 | StringConstraint DT.Text
                 deriving (Show)
