@@ -195,6 +195,9 @@ data Expr = Ref !Identifier
           | AddressOf !Expr
           | Word_ !Word
           | VarNodeRef !Identifier
+          | BitRange !Identifier !Int !Int
+          -- ^ var[baseIndex, numBits]
+
           -- Bits
           | Truncate !Expr !Word
           -- ^ Integer expression, number of bytes to truncate to

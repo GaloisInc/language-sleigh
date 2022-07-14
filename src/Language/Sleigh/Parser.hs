@@ -360,6 +360,7 @@ parseExpression = parsePrec12
                            , parsePrec1
                            ]
     parsePrec1 = TM.choice [ TM.try (Funcall <$> parseIdentifier <*> TM.between (token PP.LParen) (token PP.RParen) (TM.sepBy parseExpression (token PP.Comma)))
+                           , TM.try (BitRange <$> parseIdentifier <*> (token PP.LBracket *> parseNumber) <*> (token PP.Comma *> parseNumber <* token PP.RBracket))
                            , TM.try (Ref <$> parseIdentifier)
                            , TM.try (Word_ <$> parseWord)
                            , TM.try (TM.between (token PP.LParen) (token PP.RParen) parseExpression)
