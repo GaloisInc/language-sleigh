@@ -26,6 +26,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal
       name: Setup Haskell
