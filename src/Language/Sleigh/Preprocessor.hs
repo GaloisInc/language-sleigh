@@ -287,6 +287,7 @@ anyToken = do
                  , TM.try (stoken FNE "f!=")
                  , TM.try (token StringLiteral stringLiteral)
                  , TM.try (token Number (TMC.string "0x" *> TMCL.hexadecimal))
+                 , TM.try (token Number (TMC.string "0b" *> TMCL.binary))
                  , TM.try (token Number TMCL.decimal)
                  , TM.try (stoken Amp "$and") -- See Note [Alternative Bitwise Operators]
                  , TM.try (stoken Amp "$or") -- See Note [Alternative Bitwise Operators]
