@@ -56,6 +56,12 @@ data Token = StringLiteral DT.Text
            | FDiv
            | FMul
            | FSub
+           | FLT
+           | FLE
+           | FGT
+           | FGE
+           | FEQ
+           | FNE
            -- Special identifiers
            | Define
            | Attach
@@ -102,6 +108,12 @@ instance PP.Pretty Token where
       FSub -> "f-"
       FDiv -> "f/"
       FMul -> "f*"
+      FEQ -> "f=="
+      FNE -> "f!="
+      FLE -> "f<"
+      FLT -> "f<="
+      FGT -> "f>"
+      FGE -> "f>="
       Caret -> "^"
       Exclamation -> "!"
       SignedGreaterEquals -> "s>="

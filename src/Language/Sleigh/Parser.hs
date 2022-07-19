@@ -311,6 +311,8 @@ parseExpression = parsePrec12
       case PP.tokenVal next of
         PP.Equals -> RelEquals <$> pure lhs <*> (token PP.Equals *> parseExpression)
         PP.NotEquals -> RelNotEquals <$> pure lhs <*> (token PP.NotEquals *> parseExpression)
+        PP.FEQ -> FloatEquals <$> pure lhs <*> (token PP.FEQ *> parseExpression)
+        PP.FNE -> FloatNotEquals <$> pure lhs <*> (token PP.FNE *> parseExpression)
         _ -> pure lhs
     parsePrec6 = do
       lhs <- parsePrec5
@@ -324,6 +326,10 @@ parseExpression = parsePrec12
         PP.SignedLessEquals -> RelSLE <$> pure lhs <*> (token PP.SignedLessEquals *> parseExpression)
         PP.SignedGreaterThan -> RelSGT <$> pure lhs <*> (token PP.SignedGreaterThan *> parseExpression)
         PP.SignedGreaterEquals -> RelSGE <$> pure lhs <*> (token PP.SignedGreaterEquals *> parseExpression)
+        PP.FLT -> FloatLT <$> pure lhs <*> (token PP.FLT *> parseExpression)
+        PP.FLE -> FloatLE <$> pure lhs <*> (token PP.FLE *> parseExpression)
+        PP.FGT -> FloatGT <$> pure lhs <*> (token PP.FGT *> parseExpression)
+        PP.FGE -> FloatGE <$> pure lhs <*> (token PP.FGE *> parseExpression)
         _ -> pure lhs
     parsePrec5 = do
       lhs <- parsePrec4

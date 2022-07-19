@@ -239,6 +239,12 @@ data Expr = Ref !Identifier
           | RelSLE !Expr !Expr
           | RelSGT !Expr !Expr
           | RelSGE !Expr !Expr
+          | FloatEquals !Expr !Expr
+          | FloatNotEquals !Expr !Expr
+          | FloatLT !Expr !Expr
+          | FloatLE !Expr !Expr
+          | FloatGT !Expr !Expr
+          | FloatGE !Expr !Expr
   deriving (Show)
 
 data DynamicExport =
