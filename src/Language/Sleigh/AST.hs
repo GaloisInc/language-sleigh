@@ -338,11 +338,49 @@ instance PP.Pretty Endianness where
       Big -> PP.pretty "big"
       Little -> PP.pretty "little"
 
+instance PP.Pretty SpaceType where
+  pretty st =
+    case st of
+      Memory -> PP.pretty "Memory"
+      Register -> PP.pretty "Register"
+
+instance PP.Pretty Attribute where
+  pretty a =
+    case a of
+      Signed -> PP.pretty "signed"
+      Decimal -> PP.pretty "decimal"
+      Hexadecimal -> PP.pretty "hexadecimal"
+
+instance PP.Pretty ContextAttribute where
+  pretty ca =
+    case ca of
+      NormalAttribute na -> PP.pretty na
+      NoFlow -> PP.pretty "noflow"
+
+instance PP.Pretty ContextField where
+  pretty cf = PP.pretty (contextFieldName cf) <> PP.brackets (PP.pretty (contextFieldLo cf) <> PP.pretty "," <> PP.pretty (contextFieldHi cf)) <> PP.list (fmap PP.pretty (contextAttributes cf))
+
+instance PP.Pretty TokenField where
+  pretty tf = PP.pretty (tokenFieldName tf) <> PP.brackets (PP.pretty (tokenFieldLo tf) <> PP.pretty "," <> PP.pretty (tokenFieldHi tf)) <> PP.list (fmap PP.pretty (tokenAttributes tf))
+
 instance PP.Pretty Definition where
   pretty d =
     case d of
       DefEndianness e -> PP.pretty "Endianness: " <> PP.pretty e
       DefInstructionAlignment a -> PP.pretty "Instruction Alignment: " <> PP.pretty a <> PP.pretty " bytes"
+      DefSpace ident spaceTy addrSize isDefault ->
+        let defDoc =
+              case isDefault of
+                NotDefault -> mempty
+                IsDefault -> PP.pretty " default"
+        in PP.pretty "Space " <> PP.pretty ident <> PP.brackets (PP.pretty spaceTy) PP.<+> PP.parens (PP.pretty "Address Width=" <> PP.pretty addrSize) <> defDoc
+      DefRegisterBank offset regSize regNames ->
+        PP.pretty "Register Bank (offset=" <> PP.pretty offset <> PP.pretty ",register size=" <> PP.pretty regSize <> PP.pretty ")" PP.<+> PP.list (fmap PP.pretty regNames)
+      DefPCodeOp name -> PP.pretty "PCode Operation: " <> PP.pretty name
+      DefContextVariables name fields ->
+        PP.pretty "Context Variables" <> PP.brackets (PP.pretty name) PP.<+> PP.list (fmap PP.pretty fields)
+      DefTokenFields name numBits fields ->
+        PP.pretty "Token Fields" <> PP.brackets (PP.pretty name <> PP.pretty "@" <> PP.pretty numBits) <> PP.list (fmap PP.pretty fields)
 
 instance PP.Pretty Sleigh where
   pretty s = PP.vcat [ PP.vcat (map PP.pretty (F.toList (definitions s)))
