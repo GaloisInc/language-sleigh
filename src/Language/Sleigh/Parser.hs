@@ -207,10 +207,12 @@ parseAttachNames = do
   fieldList <- nonEmptyBracketedList parseIdentifier
 
   token PP.LBracket
-  names <- TM.many parseString
+  names <- TM.many parseAttachedName
   token PP.RBracket
 
   return $! AttachNames fieldList names
+  where
+    parseAttachedName = TM.try (AttachedName <$> parseString) <|> (AttachedUnused <$ tokenIdentifier "_")
 
 parseAttach :: P.SleighM ()
 parseAttach = do

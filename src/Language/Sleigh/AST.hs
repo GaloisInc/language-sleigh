@@ -24,6 +24,7 @@ module Language.Sleigh.AST (
  , Semantics(..)
  , ConstraintOperand(..)
  , ConstraintOperator(..)
+ , AttachedName(..)
  ) where
 
 import qualified Data.Foldable as F
@@ -89,6 +90,12 @@ data ValueInterpretation = ValidInterpretation !Identifier
                          -- ^ The value is an invalid decoding
                          deriving (Show)
 
+data AttachedName = AttachedName DT.Text
+                  -- ^ A string literal in the attach matrix
+                  | AttachedUnused
+                  -- ^ Underscores, indicating an ignored/unused field
+                  deriving (Show)
+
 -- | Statements that attach additional meaning to fields
 data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
               -- ^ @fieldlist, registerlist@
@@ -132,7 +139,7 @@ data Attach = AttachVariables (DLN.NonEmpty Identifier) [ValueInterpretation]
               --    and display meaning. Instead this encoding is flagged as an
               --    invalid form of the instruction.
               -- @
-              | AttachNames (DLN.NonEmpty Identifier) [DT.Text]
+              | AttachNames (DLN.NonEmpty Identifier) [AttachedName]
               -- ^ Attach additional names to fields, but do not change their semantic meaning
               --
               -- @
