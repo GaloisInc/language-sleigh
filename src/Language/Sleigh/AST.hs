@@ -189,6 +189,8 @@ data Constraint = RelationalConstraint !ConstraintOperand !ConstraintOperator !C
                 deriving (Show)
 
 data BitPattern = And BitPattern BitPattern
+                | Concat BitPattern BitPattern
+                -- ^ Just like 'And' (with the same precedence) but represents concatenation
                 | Or BitPattern BitPattern
                 | Constraint !Constraint
                 deriving (Show)

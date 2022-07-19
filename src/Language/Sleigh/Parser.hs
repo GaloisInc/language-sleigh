@@ -227,7 +227,7 @@ parseBitPattern :: P.SleighM BitPattern
 parseBitPattern = parseBitDisj
   where
     parseBitDisj = TM.choice [ TM.try disj, parseBitConj ]
-    parseBitConj = TM.choice [ TM.try conj, parseAtomicBitPattern ]
+    parseBitConj = TM.choice [ TM.try conj, TM.try concatBits, parseAtomicBitPattern ]
     disj = do
       lhs <- parseBitConj
       token PP.BitwiseOr
@@ -238,6 +238,12 @@ parseBitPattern = parseBitDisj
       token PP.Amp
       rhs <- parseBitPattern
       return (And lhs rhs)
+
+    concatBits = do
+      lhs <- parseAtomicBitPattern
+      token PP.Semi
+      rhs <- parseBitPattern
+      return (Concat lhs rhs)
 
     parseConstraintOperator =
       TM.choice [ TM.try (CEq <$ token PP.Assign)
