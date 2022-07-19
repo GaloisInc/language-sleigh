@@ -371,7 +371,7 @@ preprocessorBinaryOperand = do
       defs <- CL.use parserDefines
       case Map.lookup ident defs of
         Just (StringLiteral l) -> return l
-        Nothing -> TM.customFailure (UndefinedMacroExpansion (I.identifierText ident))
+        _ -> TM.customFailure (UndefinedMacroExpansion (I.identifierText ident))
 
 preprocessorEquality :: PP ConditionalGuard
 preprocessorEquality = do
