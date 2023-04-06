@@ -47,7 +47,7 @@ jobs:
 
     - name: Build
       run: |
-        cabal configure pkg:language-sleigh --write-ghc-environment-files=always -j1 --enable-tests
+        cabal configure pkg:language-sleigh --write-ghc-environment-files=always -j2 --enable-tests
         cabal build pkg:language-sleigh
 
     - name: Haddock
